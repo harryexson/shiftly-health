@@ -34,6 +34,9 @@ import NotificationSettings from './pages/NotificationSettings';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
 import CredentialVerification from './pages/CredentialVerification';
 import Messages from './pages/Messages';
+import ShiftCalendar from './pages/ShiftCalendar';
+import ShiftTemplates from './pages/ShiftTemplates';
+import StaffAvailability from './pages/StaffAvailability';
 import Layout from './Layout.jsx';
 
 
@@ -74,6 +77,9 @@ export const PAGES = {
     "AnalyticsDashboard": AnalyticsDashboard,
     "CredentialVerification": CredentialVerification,
     "Messages": Messages,
+    "ShiftCalendar": ShiftCalendar,
+    "ShiftTemplates": ShiftTemplates,
+    "StaffAvailability": StaffAvailability,
 }
 
 export const pagesConfig = {

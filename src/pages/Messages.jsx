@@ -1,55 +1,34 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  MessageSquare, 
-  Plus, 
-  Search, 
+  MessageSquare,
+  Send,
   Users,
   Briefcase,
   Building2,
-  Send
+  Search,
+  Paperclip,
+  X
 } from "lucide-react";
-import ConversationList from "../components/chat/ConversationList";
-import ChatWindow from "../components/chat/ChatWindow";
+import { format, formatDistanceToNow } from "date-fns";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function Messages() {
   const [user, setUser] = useState(null);
   const [selectedConversation, setSelectedConversation] = useState(null);
-  const [showNewConversation, setShowNewConversation] = useState(false);
+  const [messageText, setMessageText] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [conversationType, setConversationType] = useState("all");
-  const [showMobileChat, setShowMobileChat] = useState(false);
-
-  // New conversation form
-  const [newConvType, setNewConvType] = useState("direct");
-  const [selectedRecipient, setSelectedRecipient] = useState("");
-  const [selectedShift, setSelectedShift] = useState("");
-  const [conversationTitle, setConversationTitle] = useState("");
-
+  const messagesEndRef = useRef(null);
   const queryClient = useQueryClient();
 
-  React.useEffect(() => {
+  useEffect(() => {
     const loadUser = async () => {
       const currentUser = await base44.auth.me();
       setUser(currentUser);
@@ -58,409 +37,368 @@ export default function Messages() {
   }, []);
 
   // Fetch conversations
-  const { data: allConversations = [] } = useQuery({
+  const { data: conversations = [], refetch: refetchConversations } = useQuery({
     queryKey: ['conversations', user?.email],
     queryFn: async () => {
-      const convs = await base44.entities.Conversation.filter({}, '-last_message_at');
-      // Filter to only show conversations where user is a participant
-      return convs.filter(conv => conv.participants?.includes(user.email));
+      const allConvos = await base44.entities.Conversation.filter({
+        participants: { $contains: user.email }
+      }, '-last_message_time');
+      return allConvos;
     },
     enabled: !!user,
-    refetchInterval: 5000, // Poll every 5 seconds
+    refetchInterval: 5000, // Poll every 5 seconds for real-time feel
   });
 
-  // Fetch potential recipients
-  const { data: potentialRecipients = [] } = useQuery({
-    queryKey: ['potential-recipients', user?.email],
-    queryFn: async () => {
-      if (user.role === 'staff') {
-        // Staff can message employers they've applied to
-        const applications = await base44.entities.ShiftApplication.filter({
-          staff_email: user.email
+  // Fetch messages for selected conversation
+  const { data: messages = [], refetch: refetchMessages } = useQuery({
+    queryKey: ['messages', selectedConversation?.id],
+    queryFn: () => base44.entities.Message.filter({
+      conversation_id: selectedConversation.id
+    }, 'created_date'),
+    enabled: !!selectedConversation,
+    refetchInterval: 3000, // Poll every 3 seconds
+  });
+
+  // Send message mutation
+  const sendMessageMutation = useMutation({
+    mutationFn: async ({ conversationId, text }) => {
+      const message = await base44.entities.Message.create({
+        conversation_id: conversationId,
+        sender_email: user.email,
+        sender_name: user.full_name || user.email,
+        message_text: text,
+        message_type: 'text',
+        read_by: [user.email],
+        timestamp: new Date().toISOString()
+      });
+
+      // Update conversation
+      await base44.entities.Conversation.update(conversationId, {
+        last_message: text.substring(0, 100),
+        last_message_time: new Date().toISOString()
+      });
+
+      // Send notifications to other participants
+      const conversation = conversations.find(c => c.id === conversationId);
+      const otherParticipants = conversation.participants.filter(p => p !== user.email);
+
+      for (const participantEmail of otherParticipants) {
+        await base44.integrations.Core.SendEmail({
+          to: participantEmail,
+          subject: `New message from ${user.full_name || user.email}`,
+          body: `
+            <h2>You have a new message</h2>
+            <p><strong>From:</strong> ${user.full_name || user.email}</p>
+            <p><strong>Message:</strong> ${text}</p>
+            <p>Log in to HealthStaff Connect to reply.</p>
+          `
         });
-        const employerEmails = [...new Set(applications.map(app => app.employer_email))];
-        const profiles = await base44.entities.EmployerProfile.list();
-        return profiles.filter(p => employerEmails.includes(p.user_email));
-      } else if (user.role === 'employer') {
-        // Employers can message staff who applied to their shifts
-        const applications = await base44.entities.ShiftApplication.filter({
-          employer_email: user.email
+
+        await base44.entities.Notification.create({
+          user_email: participantEmail,
+          type: 'system_alert',
+          title: 'New Message',
+          message: `${user.full_name || user.email}: ${text.substring(0, 50)}...`,
+          priority: 'medium',
+          status: 'unread'
         });
-        const staffEmails = [...new Set(applications.map(app => app.staff_email))];
-        const profiles = await base44.entities.StaffProfile.list();
-        return profiles.filter(p => staffEmails.includes(p.user_email));
       }
-      return [];
+
+      return message;
     },
-    enabled: !!user && showNewConversation,
+    onSuccess: () => {
+      setMessageText("");
+      refetchMessages();
+      refetchConversations();
+      scrollToBottom();
+    },
   });
 
-  // Fetch shifts for shift conversations
-  const { data: userShifts = [] } = useQuery({
-    queryKey: ['user-shifts', user?.email],
-    queryFn: async () => {
-      if (user.role === 'staff') {
-        const applications = await base44.entities.ShiftApplication.filter({
-          staff_email: user.email,
-          status: 'accepted'
-        });
-        const shiftIds = applications.map(app => app.shift_id);
-        const shifts = await base44.entities.Shift.list();
-        return shifts.filter(s => shiftIds.includes(s.id));
-      } else if (user.role === 'employer') {
-        return await base44.entities.Shift.filter({
-          employer_email: user.email
-        });
-      }
-      return [];
-    },
-    enabled: !!user && showNewConversation && newConvType === 'shift',
-  });
-
-  const createConversationMutation = useMutation({
-    mutationFn: async (conversationData) => {
-      // Check if conversation already exists
-      const existingConv = allConversations.find(conv => 
-        conv.conversation_type === conversationData.conversation_type &&
-        (conversationData.shift_id ? conv.shift_id === conversationData.shift_id : true) &&
-        conv.participants?.every(p => conversationData.participants.includes(p)) &&
-        conversationData.participants.every(p => conv.participants?.includes(p))
+  // Mark messages as read
+  const markAsReadMutation = useMutation({
+    mutationFn: async (conversationId) => {
+      const unreadMessages = messages.filter(m => 
+        !m.read_by?.includes(user.email) && m.sender_email !== user.email
       );
 
-      if (existingConv) {
-        return existingConv;
-      }
-
-      // Create new conversation
-      const conversation = await base44.entities.Conversation.create({
-        ...conversationData,
-        unread_count: conversationData.participants.reduce((acc, email) => {
-          acc[email] = 0;
-          return acc;
-        }, {})
-      });
-
-      // Send system message for shift conversations
-      if (conversationData.conversation_type === 'shift') {
-        await base44.entities.Message.create({
-          conversation_id: conversation.id,
-          sender_email: 'system@healthstaffconnect.com',
-          sender_name: 'System',
-          sender_role: 'admin',
-          message_text: `Conversation started for shift: ${conversationData.title}`,
-          message_type: 'system',
-          read_by: conversationData.participants
+      for (const msg of unreadMessages) {
+        await base44.entities.Message.update(msg.id, {
+          read_by: [...(msg.read_by || []), user.email]
         });
       }
-
-      return conversation;
-    },
-    onSuccess: (conversation) => {
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
-      setSelectedConversation(conversation);
-      setShowNewConversation(false);
-      setShowMobileChat(true);
-      resetNewConvForm();
     },
   });
 
-  const resetNewConvForm = () => {
-    setNewConvType("direct");
-    setSelectedRecipient("");
-    setSelectedShift("");
-    setConversationTitle("");
+  useEffect(() => {
+    if (selectedConversation && messages.length > 0) {
+      markAsReadMutation.mutate(selectedConversation.id);
+    }
+  }, [selectedConversation?.id, messages.length]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleCreateConversation = () => {
-    if (newConvType === 'direct' && selectedRecipient) {
-      const recipient = potentialRecipients.find(p => p.user_email === selectedRecipient);
-      createConversationMutation.mutate({
-        conversation_type: 'direct',
-        participants: [user.email, selectedRecipient],
-        title: recipient?.full_name || recipient?.facility_name || selectedRecipient
-      });
-    } else if (newConvType === 'shift' && selectedShift) {
-      const shift = userShifts.find(s => s.id === selectedShift);
-      // Get all participants for this shift
-      const participants = [user.email];
-      if (user.role === 'staff') {
-        participants.push(shift.employer_email);
-      } else if (user.role === 'employer') {
-        // Get staff who are assigned to this shift
-        base44.entities.ShiftApplication.filter({
-          shift_id: selectedShift,
-          status: 'accepted'
-        }).then(apps => {
-          const staffEmails = apps.map(app => app.staff_email);
-          createConversationMutation.mutate({
-            conversation_type: 'shift',
-            shift_id: selectedShift,
-            participants: [...new Set([...participants, ...staffEmails])],
-            title: `Shift: ${shift.title}`
-          });
-        });
-        return;
-      }
-      createConversationMutation.mutate({
-        conversation_type: 'shift',
-        shift_id: selectedShift,
-        participants,
-        title: `Shift: ${shift.title}`
-      });
-    } else if (newConvType === 'facility_announcement' && conversationTitle) {
-      // Get all staff who have worked with this facility
-      base44.entities.ShiftApplication.filter({
-        employer_email: user.email,
-        status: 'accepted'
-      }).then(apps => {
-        const staffEmails = [...new Set(apps.map(app => app.staff_email))];
-        createConversationMutation.mutate({
-          conversation_type: 'facility_announcement',
-          facility_email: user.email,
-          participants: [user.email, ...staffEmails],
-          title: conversationTitle
-        });
-      });
-    }
+  const handleSendMessage = (e) => {
+    e.preventDefault();
+    if (!messageText.trim() || !selectedConversation) return;
+
+    sendMessageMutation.mutate({
+      conversationId: selectedConversation.id,
+      text: messageText.trim()
+    });
   };
 
-  // Filter conversations
-  const filteredConversations = allConversations.filter(conv => {
-    // Filter by type
-    if (conversationType !== 'all' && conv.conversation_type !== conversationType) {
-      return false;
+  const getConversationTitle = (convo) => {
+    if (convo.title) return convo.title;
+    
+    if (convo.conversation_type === 'facility_wide') {
+      return 'Facility Announcements';
     }
 
-    // Filter by search term
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      return (
-        conv.title?.toLowerCase().includes(search) ||
-        conv.last_message?.toLowerCase().includes(search) ||
-        conv.participants?.some(p => p.toLowerCase().includes(search))
-      );
-    }
+    const otherParticipants = convo.participants.filter(p => p !== user?.email);
+    return otherParticipants.join(', ') || 'Conversation';
+  };
 
-    return true;
+  const getUnreadCount = (convo) => {
+    return convo.unread_count?.[user?.email] || 0;
+  };
+
+  const filteredConversations = conversations.filter(convo => {
+    const title = getConversationTitle(convo).toLowerCase();
+    return title.includes(searchTerm.toLowerCase());
   });
 
-  // Calculate total unread count
-  const totalUnreadCount = allConversations.reduce((sum, conv) => {
-    return sum + (conv.unread_count?.[user?.email] || 0);
-  }, 0);
+  if (!user) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-purple-50/30 to-blue-50/30 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto">
-        <Card className="border-purple-100/50 h-[calc(100vh-8rem)]">
-          <CardHeader className="border-b border-gray-200 pb-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <MessageSquare className="w-6 h-6 text-purple-600" />
-                <div>
-                  <CardTitle className="text-2xl">Messages</CardTitle>
-                  {totalUnreadCount > 0 && (
-                    <p className="text-sm text-gray-600 mt-1">
-                      {totalUnreadCount} unread message{totalUnreadCount !== 1 ? 's' : ''}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <Button
-                onClick={() => setShowNewConversation(true)}
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-              >
-                <Plus className="w-5 h-5 mr-2" />
-                New Message
-              </Button>
+    <div className="h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-teal-50/30 flex flex-col">
+      <div className="flex-1 flex overflow-hidden p-4 gap-4">
+        {/* Conversations List */}
+        <Card className="w-80 flex flex-col border-blue-100/50">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2">
+              <MessageSquare className="w-5 h-5" />
+              Messages
+            </CardTitle>
+            <div className="relative mt-3">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                placeholder="Search conversations..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
             </div>
           </CardHeader>
-
-          <div className="grid md:grid-cols-3 h-[calc(100%-5rem)]">
-            {/* Conversations List */}
-            <div className={`border-r border-gray-200 flex flex-col ${
-              showMobileChat ? 'hidden md:block' : ''
-            }`}>
-              <div className="p-4 border-b border-gray-200 space-y-3">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    placeholder="Search conversations..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
+          <CardContent className="flex-1 p-0 overflow-hidden">
+            <ScrollArea className="h-full">
+              {filteredConversations.length === 0 ? (
+                <div className="text-center py-8 px-4">
+                  <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500 text-sm">No conversations yet</p>
                 </div>
-
-                <Tabs value={conversationType} onValueChange={setConversationType}>
-                  <TabsList className="grid grid-cols-4 w-full">
-                    <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
-                    <TabsTrigger value="direct" className="text-xs">Direct</TabsTrigger>
-                    <TabsTrigger value="shift" className="text-xs">Shifts</TabsTrigger>
-                    <TabsTrigger value="facility_announcement" className="text-xs">
-                      Announcements
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-2">
-                <ConversationList
-                  conversations={filteredConversations}
-                  selectedConversationId={selectedConversation?.id}
-                  onSelectConversation={(conv) => {
-                    setSelectedConversation(conv);
-                    setShowMobileChat(true);
-                  }}
-                  currentUserEmail={user?.email}
-                />
-              </div>
-            </div>
-
-            {/* Chat Window */}
-            <div className={`md:col-span-2 ${
-              !showMobileChat ? 'hidden md:block' : ''
-            }`}>
-              {selectedConversation ? (
-                <ChatWindow
-                  conversation={selectedConversation}
-                  currentUser={user}
-                  onBack={() => setShowMobileChat(false)}
-                  onShowInfo={() => {}}
-                />
               ) : (
-                <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                  <MessageSquare className="w-16 h-16 text-gray-300 mb-4" />
-                  <p className="text-lg font-medium text-gray-700 mb-2">
-                    Select a conversation
-                  </p>
-                  <p className="text-sm">
-                    Choose a conversation from the list to start messaging
-                  </p>
+                <div className="space-y-1 p-2">
+                  {filteredConversations.map((convo) => {
+                    const unreadCount = getUnreadCount(convo);
+                    const isSelected = selectedConversation?.id === convo.id;
+
+                    return (
+                      <button
+                        key={convo.id}
+                        onClick={() => setSelectedConversation(convo)}
+                        className={`w-full text-left p-3 rounded-lg transition-all ${
+                          isSelected 
+                            ? 'bg-blue-100 border-blue-300' 
+                            : 'hover:bg-gray-50 border-transparent'
+                        } border`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="mt-1">
+                            {convo.conversation_type === 'facility_wide' ? (
+                              <Building2 className="w-5 h-5 text-purple-600" />
+                            ) : convo.shift_id ? (
+                              <Briefcase className="w-5 h-5 text-blue-600" />
+                            ) : (
+                              <Users className="w-5 h-5 text-gray-600" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <h4 className="font-semibold text-sm truncate">
+                                {getConversationTitle(convo)}
+                              </h4>
+                              {unreadCount > 0 && (
+                                <Badge className="bg-red-500 text-white text-xs">
+                                  {unreadCount}
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-600 truncate">
+                              {convo.last_message || 'No messages yet'}
+                            </p>
+                            {convo.last_message_time && (
+                              <p className="text-xs text-gray-400 mt-1">
+                                {formatDistanceToNow(new Date(convo.last_message_time), { addSuffix: true })}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
+            </ScrollArea>
+          </CardContent>
+        </Card>
+
+        {/* Messages Area */}
+        <Card className="flex-1 flex flex-col border-blue-100/50">
+          {selectedConversation ? (
+            <>
+              {/* Chat Header */}
+              <CardHeader className="border-b border-gray-200 pb-3">
+                <div className="flex items-center gap-3">
+                  {selectedConversation.conversation_type === 'facility_wide' ? (
+                    <Building2 className="w-6 h-6 text-purple-600" />
+                  ) : selectedConversation.shift_id ? (
+                    <Briefcase className="w-6 h-6 text-blue-600" />
+                  ) : (
+                    <Users className="w-6 h-6 text-gray-600" />
+                  )}
+                  <div>
+                    <h3 className="font-bold text-lg">
+                      {getConversationTitle(selectedConversation)}
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      {selectedConversation.conversation_type === 'facility_wide' 
+                        ? 'All facility staff can see these messages'
+                        : `${selectedConversation.participants.length} participant(s)`}
+                    </p>
+                  </div>
+                </div>
+              </CardHeader>
+
+              {/* Messages */}
+              <CardContent className="flex-1 overflow-hidden p-4">
+                <ScrollArea className="h-full pr-4">
+                  {messages.length === 0 ? (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="text-center">
+                        <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-3" />
+                        <p className="text-gray-500">No messages yet. Start the conversation!</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {messages.map((msg) => {
+                        const isOwn = msg.sender_email === user.email;
+                        const isSystem = msg.message_type === 'system' || msg.message_type === 'announcement';
+
+                        if (isSystem) {
+                          return (
+                            <div key={msg.id} className="flex justify-center">
+                              <div className="bg-gray-100 text-gray-700 px-4 py-2 rounded-full text-sm max-w-md text-center">
+                                {msg.message_text}
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div
+                            key={msg.id}
+                            className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
+                          >
+                            <div className={`flex gap-2 max-w-lg ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+                              <Avatar className="w-8 h-8 flex-shrink-0">
+                                <AvatarFallback className={isOwn ? 'bg-blue-100' : 'bg-gray-200'}>
+                                  {msg.sender_name?.charAt(0) || msg.sender_email.charAt(0).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
+                                <div
+                                  className={`rounded-2xl px-4 py-2 ${
+                                    isOwn
+                                      ? 'bg-blue-600 text-white'
+                                      : 'bg-gray-100 text-gray-900'
+                                  }`}
+                                >
+                                  {!isOwn && (
+                                    <p className="text-xs font-semibold mb-1 opacity-70">
+                                      {msg.sender_name || msg.sender_email}
+                                    </p>
+                                  )}
+                                  <p className="text-sm whitespace-pre-wrap break-words">
+                                    {msg.message_text}
+                                  </p>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1 px-1">
+                                  {format(new Date(msg.timestamp || msg.created_date), 'h:mm a')}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      <div ref={messagesEndRef} />
+                    </div>
+                  )}
+                </ScrollArea>
+              </CardContent>
+
+              {/* Message Input */}
+              <div className="border-t border-gray-200 p-4">
+                <form onSubmit={handleSendMessage} className="flex gap-2">
+                  <Textarea
+                    placeholder="Type your message..."
+                    value={messageText}
+                    onChange={(e) => setMessageText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage(e);
+                      }
+                    }}
+                    rows={2}
+                    className="flex-1 resize-none"
+                  />
+                  <Button
+                    type="submit"
+                    disabled={!messageText.trim() || sendMessageMutation.isPending}
+                    className="bg-blue-600 hover:bg-blue-700 self-end"
+                  >
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </form>
+                <p className="text-xs text-gray-500 mt-2">
+                  Press Enter to send, Shift+Enter for new line
+                </p>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <MessageSquare className="w-20 h-20 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-700 mb-2">
+                  Select a conversation
+                </h3>
+                <p className="text-gray-500">
+                  Choose a conversation from the list to start messaging
+                </p>
+              </div>
             </div>
-          </div>
+          )}
         </Card>
       </div>
-
-      {/* New Conversation Dialog */}
-      <Dialog open={showNewConversation} onOpenChange={setShowNewConversation}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Start New Conversation</DialogTitle>
-            <DialogDescription>
-              Create a new direct message, shift discussion, or facility announcement
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div>
-              <Label>Conversation Type</Label>
-              <Select value={newConvType} onValueChange={setNewConvType}>
-                <SelectTrigger className="mt-2">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="direct">
-                    <div className="flex items-center gap-2">
-                      <MessageSquare className="w-4 h-4" />
-                      Direct Message
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="shift">
-                    <div className="flex items-center gap-2">
-                      <Briefcase className="w-4 h-4" />
-                      Shift Discussion
-                    </div>
-                  </SelectItem>
-                  {user?.role === 'employer' && (
-                    <SelectItem value="facility_announcement">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="w-4 h-4" />
-                        Facility Announcement
-                      </div>
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {newConvType === 'direct' && (
-              <div>
-                <Label>Select Recipient</Label>
-                <Select value={selectedRecipient} onValueChange={setSelectedRecipient}>
-                  <SelectTrigger className="mt-2">
-                    <SelectValue placeholder="Choose a person..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {potentialRecipients.map((recipient) => (
-                      <SelectItem key={recipient.user_email} value={recipient.user_email}>
-                        {recipient.full_name || recipient.facility_name || recipient.user_email}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {newConvType === 'shift' && (
-              <div>
-                <Label>Select Shift</Label>
-                <Select value={selectedShift} onValueChange={setSelectedShift}>
-                  <SelectTrigger className="mt-2">
-                    <SelectValue placeholder="Choose a shift..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {userShifts.map((shift) => (
-                      <SelectItem key={shift.id} value={shift.id}>
-                        {shift.title} - {new Date(shift.shift_date).toLocaleDateString()}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {newConvType === 'facility_announcement' && (
-              <div>
-                <Label>Announcement Title</Label>
-                <Input
-                  value={conversationTitle}
-                  onChange={(e) => setConversationTitle(e.target.value)}
-                  placeholder="e.g., Important Facility Updates"
-                  className="mt-2"
-                />
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowNewConversation(false);
-                resetNewConvForm();
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreateConversation}
-              disabled={
-                (newConvType === 'direct' && !selectedRecipient) ||
-                (newConvType === 'shift' && !selectedShift) ||
-                (newConvType === 'facility_announcement' && !conversationTitle) ||
-                createConversationMutation.isPending
-              }
-              className="bg-gradient-to-r from-purple-600 to-blue-600"
-            >
-              <Send className="w-4 h-4 mr-2" />
-              Start Conversation
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
