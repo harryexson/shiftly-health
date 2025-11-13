@@ -33,6 +33,7 @@ import ManageStaffPreferences from './pages/ManageStaffPreferences';
 import NotificationSettings from './pages/NotificationSettings';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
 import CredentialVerification from './pages/CredentialVerification';
+import Messages from './pages/Messages';
 import Layout from './Layout.jsx';
 
 
@@ -72,6 +73,7 @@ export const PAGES = {
     "NotificationSettings": NotificationSettings,
     "AnalyticsDashboard": AnalyticsDashboard,
     "CredentialVerification": CredentialVerification,
+    "Messages": Messages,
 }
 
 export const pagesConfig = {
