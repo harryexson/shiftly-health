@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -11,8 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { X, CheckCircle, XCircle, Clock, FileText, Shield, Award, Book, Upload } from "lucide-react";
-import HelpTooltip from "../components/onboarding/HelpTooltip"; // Added import
+import { Switch } from "@/components/ui/switch";
+import { X, CheckCircle, XCircle, Clock, FileText, Shield, Award, Book, Upload, Sun, Moon, Sunrise, Calendar } from "lucide-react";
+import HelpTooltip from "../components/onboarding/HelpTooltip";
 
 const QUALIFICATIONS = [
   "CPR", "First Aid", "Mental Health Training", "ISP Training",
@@ -40,21 +40,35 @@ export default function StaffProfile() {
     qualifications: [],
     hourly_rate: "",
     bio: "",
-    years_experience: ""
+    years_experience: "",
+    shift_preferences: {
+      preferred_shift_times: [],
+      willing_to_work_weekends: true,
+      willing_to_work_holidays: true,
+      max_commute_miles: 25,
+      prefers_urgent_shifts: false
+    }
   });
 
   const [uploadingDoc, setUploadingDoc] = useState(false);
-  const [uploadType, setUploadType] = useState(""); // This state isn't strictly used in the provided outline but is kept for consistency if it was intended for other logic.
 
   React.useEffect(() => {
     const loadUser = async () => {
       const currentUser = await base44.auth.me();
       setUser(currentUser);
       
-      // Check if profile exists
       const profiles = await base44.entities.StaffProfile.filter({ user_email: currentUser.email });
       if (profiles.length > 0) {
-        setFormData(profiles[0]);
+        setFormData({
+          ...profiles[0],
+          shift_preferences: profiles[0].shift_preferences || {
+            preferred_shift_times: [],
+            willing_to_work_weekends: true,
+            willing_to_work_holidays: true,
+            max_commute_miles: 25,
+            prefers_urgent_shifts: false
+          }
+        });
       } else {
         setFormData(prev => ({ ...prev, full_name: currentUser.full_name || "" }));
       }
@@ -86,7 +100,6 @@ export default function StaffProfile() {
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['staff-profile'] });
       
-      // Update onboarding progress
       const onboardingProgress = await base44.entities.OnboardingProgress.filter({
         user_email: user.email
       });
@@ -97,7 +110,7 @@ export default function StaffProfile() {
             ...onboardingProgress[0].checklist_items,
             profile_created: true,
             qualifications_added: formData.qualifications && formData.qualifications.length > 0,
-            availability_set: !!(formData.shift_preferences?.max_commute_miles) // Safely check for shift_preferences
+            availability_set: !!(formData.shift_preferences?.max_commute_miles)
           }
         });
       }
@@ -111,10 +124,8 @@ export default function StaffProfile() {
 
   const uploadDocumentMutation = useMutation({
     mutationFn: async ({ file, docType, docName, licenseNumber, expiryDate }) => {
-      // Upload file to storage
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
 
-      // Create compliance record
       await base44.entities.ComplianceRecord.create({
         user_email: user.email,
         record_type: docType,
@@ -126,9 +137,8 @@ export default function StaffProfile() {
         third_party_verification_id: licenseNumber || null
       });
 
-      // Notify admins
       await base44.integrations.Core.SendEmail({
-        to: 'admin@healthstaffconnect.com', // Replace with actual admin email
+        to: 'admin@healthstaffconnect.com',
         subject: 'New Credential Submitted for Verification',
         body: `
           <h2>New Credential Upload</h2>
@@ -144,7 +154,6 @@ export default function StaffProfile() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['compliance-records'] });
-      setUploadType("");
       alert('Document uploaded successfully! It will be reviewed by our team.');
     },
   });
@@ -177,7 +186,7 @@ export default function StaffProfile() {
       });
     } finally {
       setUploadingDoc(false);
-      e.target.value = null; // Clear the input so the same file can be re-uploaded
+      e.target.value = null;
     }
   };
 
@@ -195,6 +204,18 @@ export default function StaffProfile() {
       qualifications: prev.qualifications.includes(qual)
         ? prev.qualifications.filter(q => q !== qual)
         : [...prev.qualifications, qual]
+    }));
+  };
+
+  const toggleShiftTime = (time) => {
+    setFormData(prev => ({
+      ...prev,
+      shift_preferences: {
+        ...prev.shift_preferences,
+        preferred_shift_times: prev.shift_preferences.preferred_shift_times.includes(time)
+          ? prev.shift_preferences.preferred_shift_times.filter(t => t !== time)
+          : [...prev.shift_preferences.preferred_shift_times, time]
+      }
     }));
   };
 
@@ -232,7 +253,6 @@ export default function StaffProfile() {
           </div>
         </div>
 
-        {/* Verification Status Banner */}
         {existingProfile && (
           <Card className={`border-2 ${
             existingProfile.verification_status === 'verified' 
@@ -284,6 +304,7 @@ export default function StaffProfile() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Personal Information */}
           <Card className="border-blue-100/50">
             <CardHeader>
               <CardTitle>Personal Information</CardTitle>
@@ -348,7 +369,7 @@ export default function StaffProfile() {
                     <Label htmlFor="years_experience">Years of Experience *</Label>
                     <HelpTooltip
                       title="Experience Matters"
-                      content="Your years of experience help employers find the right match and may unlock higher-paying opportunities. Be accurate—this affects which shifts you can apply for."
+                      content="Your years of experience help employers find the right match and may unlock higher-paying opportunities."
                     />
                   </div>
                   <Input
@@ -363,9 +384,6 @@ export default function StaffProfile() {
                     className="mt-2"
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Total years in healthcare (can include half years like 2.5)
-                  </p>
                 </div>
                 <div>
                   <Label htmlFor="hourly_rate">Desired Hourly Rate ($)</Label>
@@ -383,7 +401,172 @@ export default function StaffProfile() {
             </CardContent>
           </Card>
 
-          <Card className="border-purple-100/50">
+          {/* Preferred Shift Times - NEW ENHANCED SECTION */}
+          <Card className="border-purple-100/50 bg-gradient-to-br from-purple-50/50 to-blue-50/50">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-purple-600" />
+                <CardTitle>Preferred Shift Times</CardTitle>
+                <HelpTooltip
+                  title="Why This Matters"
+                  content="Setting your preferred shift times helps us match you with shifts that fit your schedule. You'll get priority for shifts during your preferred times!"
+                />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Shift Time Preferences */}
+              <div>
+                <Label className="text-base font-semibold mb-3 block">When do you prefer to work? *</Label>
+                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => toggleShiftTime('day')}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      formData.shift_preferences.preferred_shift_times.includes('day')
+                        ? 'border-yellow-400 bg-yellow-50'
+                        : 'border-gray-200 hover:border-yellow-200'
+                    }`}
+                  >
+                    <Sun className={`w-8 h-8 mx-auto mb-2 ${
+                      formData.shift_preferences.preferred_shift_times.includes('day')
+                        ? 'text-yellow-600'
+                        : 'text-gray-400'
+                    }`} />
+                    <div className="font-semibold">Day Shift</div>
+                    <div className="text-xs text-gray-600">7am - 3pm</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => toggleShiftTime('evening')}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      formData.shift_preferences.preferred_shift_times.includes('evening')
+                        ? 'border-orange-400 bg-orange-50'
+                        : 'border-gray-200 hover:border-orange-200'
+                    }`}
+                  >
+                    <Sunrise className={`w-8 h-8 mx-auto mb-2 ${
+                      formData.shift_preferences.preferred_shift_times.includes('evening')
+                        ? 'text-orange-600'
+                        : 'text-gray-400'
+                    }`} />
+                    <div className="font-semibold">Evening Shift</div>
+                    <div className="text-xs text-gray-600">3pm - 11pm</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => toggleShiftTime('night')}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      formData.shift_preferences.preferred_shift_times.includes('night')
+                        ? 'border-blue-400 bg-blue-50'
+                        : 'border-gray-200 hover:border-blue-200'
+                    }`}
+                  >
+                    <Moon className={`w-8 h-8 mx-auto mb-2 ${
+                      formData.shift_preferences.preferred_shift_times.includes('night')
+                        ? 'text-blue-600'
+                        : 'text-gray-400'
+                    }`} />
+                    <div className="font-semibold">Night Shift</div>
+                    <div className="text-xs text-gray-600">11pm - 7am</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => toggleShiftTime('flexible')}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      formData.shift_preferences.preferred_shift_times.includes('flexible')
+                        ? 'border-purple-400 bg-purple-50'
+                        : 'border-gray-200 hover:border-purple-200'
+                    }`}
+                  >
+                    <Clock className={`w-8 h-8 mx-auto mb-2 ${
+                      formData.shift_preferences.preferred_shift_times.includes('flexible')
+                        ? 'text-purple-600'
+                        : 'text-gray-400'
+                    }`} />
+                    <div className="font-semibold">Flexible</div>
+                    <div className="text-xs text-gray-600">Any time</div>
+                  </button>
+                </div>
+                <p className="text-xs text-gray-600 mt-2">
+                  💡 Select multiple options to increase your shift opportunities
+                </p>
+              </div>
+
+              {/* Additional Preferences */}
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
+                  <div>
+                    <Label className="font-semibold">Work Weekends</Label>
+                    <p className="text-xs text-gray-600">Available Saturdays & Sundays</p>
+                  </div>
+                  <Switch
+                    checked={formData.shift_preferences.willing_to_work_weekends}
+                    onCheckedChange={(checked) => setFormData({
+                      ...formData,
+                      shift_preferences: { ...formData.shift_preferences, willing_to_work_weekends: checked }
+                    })}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
+                  <div>
+                    <Label className="font-semibold">Work Holidays</Label>
+                    <p className="text-xs text-gray-600">Available on major holidays</p>
+                  </div>
+                  <Switch
+                    checked={formData.shift_preferences.willing_to_work_holidays}
+                    onCheckedChange={(checked) => setFormData({
+                      ...formData,
+                      shift_preferences: { ...formData.shift_preferences, willing_to_work_holidays: checked }
+                    })}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
+                  <div>
+                    <Label className="font-semibold">Urgent Shifts</Label>
+                    <p className="text-xs text-gray-600">Prefer last-minute opportunities</p>
+                  </div>
+                  <Switch
+                    checked={formData.shift_preferences.prefers_urgent_shifts}
+                    onCheckedChange={(checked) => setFormData({
+                      ...formData,
+                      shift_preferences: { ...formData.shift_preferences, prefers_urgent_shifts: checked }
+                    })}
+                  />
+                </div>
+
+                <div className="p-4 bg-white rounded-lg border border-gray-200">
+                  <Label htmlFor="max_commute" className="font-semibold">Max Commute (miles)</Label>
+                  <Input
+                    id="max_commute"
+                    type="number"
+                    min="5"
+                    max="100"
+                    value={formData.shift_preferences.max_commute_miles}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      shift_preferences: { ...formData.shift_preferences, max_commute_miles: parseInt(e.target.value) }
+                    })}
+                    className="mt-2"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-900">
+                  <strong>💡 Pro Tip:</strong> Staff with flexible shift preferences get 3x more shift offers! 
+                  Being available for evenings and weekends significantly increases your earning potential.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Location */}
+          <Card className="border-blue-100/50">
             <CardHeader>
               <CardTitle>Location</CardTitle>
             </CardHeader>
@@ -429,19 +612,18 @@ export default function StaffProfile() {
             </CardContent>
           </Card>
 
-          {/* Credentials & Documents Section */}
+          {/* Credentials & Documents */}
           <Card className="border-teal-100/50">
             <CardHeader>
               <div className="flex items-center gap-2">
                 <CardTitle>Credentials & Documents</CardTitle>
                 <HelpTooltip
                   title="Required for Verification"
-                  content="Upload your professional license, certifications, and other credentials. All documents will be verified by our compliance team before you can apply for shifts."
+                  content="Upload your professional license, certifications, and other credentials. All documents will be verified by our compliance team."
                 />
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Existing Compliance Records */}
               {complianceRecords.length > 0 && (
                 <div className="space-y-3 mb-4">
                   <Label>Uploaded Documents:</Label>
@@ -453,6 +635,7 @@ export default function StaffProfile() {
                           <p className="font-medium text-gray-900">{record.document_name}</p>
                           <p className="text-xs text-gray-600">
                             {record.record_type.replace(/_/g, ' ')}
+                            {record.expiry_date && ` • Expires: ${new Date(record.expiry_date).toLocaleDateString()}`}
                           </p>
                         </div>
                       </div>
@@ -470,7 +653,6 @@ export default function StaffProfile() {
                 </div>
               )}
 
-              {/* Upload New Documents */}
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-blue-400 transition-colors">
                   <label htmlFor="license-upload" className="cursor-pointer block text-center">
@@ -579,22 +761,17 @@ export default function StaffProfile() {
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
                 <p className="text-sm text-blue-900">
-                  <strong>📋 Verification Process:</strong> After uploading, your documents will be reviewed within 24-48 hours. 
-                  You'll receive a notification once verification is complete. Supported formats: PDF, JPG, PNG (max 10MB).
+                  <strong>📋 Verification Process:</strong> Documents are reviewed within 24-48 hours. 
+                  You'll receive a notification once verification is complete. Formats: PDF, JPG, PNG (max 10MB).
                 </p>
               </div>
             </CardContent>
           </Card>
 
+          {/* License Details */}
           <Card className="border-teal-100/50">
             <CardHeader>
-              <div className="flex items-center gap-2">
-                <CardTitle>License & Certifications (Details)</CardTitle>
-                <HelpTooltip
-                  title="Why We Verify Credentials"
-                  content="All licenses and certifications are verified before you can apply to shifts. This protects both you and the facilities, ensuring quality and compliance."
-                />
-              </div>
+              <CardTitle>License & Certification Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid md:grid-cols-3 gap-4">
