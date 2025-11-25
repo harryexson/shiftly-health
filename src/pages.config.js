@@ -37,7 +37,7 @@ import Messages from './pages/Messages';
 import ShiftCalendar from './pages/ShiftCalendar';
 import ShiftTemplates from './pages/ShiftTemplates';
 import StaffAvailability from './pages/StaffAvailability';
-import Layout from './Layout.jsx';
+import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
@@ -85,5 +85,5 @@ export const PAGES = {
 export const pagesConfig = {
     mainPage: "Home",
     Pages: PAGES,
-    Layout: Layout,
+    Layout: __Layout,
 };
