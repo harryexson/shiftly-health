@@ -21,7 +21,6 @@ import GlobalMarketplace from './pages/GlobalMarketplace';
 import FacilityAdmin from './pages/FacilityAdmin';
 import InstantPay from './pages/InstantPay';
 import PaymentProcessorInfo from './pages/PaymentProcessorInfo';
-import Home from './pages/Home';
 import BillingCenter from './pages/BillingCenter';
 import EarningsHistory from './pages/EarningsHistory';
 import PayrollManagement from './pages/PayrollManagement';
@@ -64,7 +63,6 @@ export const PAGES = {
     "FacilityAdmin": FacilityAdmin,
     "InstantPay": InstantPay,
     "PaymentProcessorInfo": PaymentProcessorInfo,
-    "Home": Home,
     "BillingCenter": BillingCenter,
     "EarningsHistory": EarningsHistory,
     "PayrollManagement": PayrollManagement,
@@ -83,7 +81,7 @@ export const PAGES = {
 }
 
 export const pagesConfig = {
-    mainPage: "Home",
+    mainPage: "StaffDashboard",
     Pages: PAGES,
     Layout: __Layout,
 };

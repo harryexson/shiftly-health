@@ -79,6 +79,9 @@ const roleNavigationMap = {
 
 const PUBLIC_PAGES = ['Home', 'Welcome'];
 
+// Set Home as the default landing page
+const DEFAULT_PAGE = 'Home';
+
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const [user, setUser] = React.useState(null);
