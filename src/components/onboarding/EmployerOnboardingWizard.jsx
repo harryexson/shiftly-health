@@ -46,8 +46,12 @@ import {
   Zap,
   Calendar,
   Users,
-  Shield
+  Shield,
+  Target,
+  MessageSquare,
+  BarChart3
 } from "lucide-react";
+import Logo from "@/components/branding/Logo";
 
 const FACILITY_TYPES = [
   "Hospital",
@@ -109,9 +113,15 @@ export default function EmployerOnboardingWizard({ user, onComplete, onSkip }) {
   const steps = [
     {
       id: "welcome",
-      title: "Welcome to HealthStaff Connect! 🏥",
+      title: "Welcome to Shiftly Health! 🏥",
       icon: Sparkles,
       description: "Let's get your facility set up to start filling shifts",
+    },
+    {
+      id: "why_shiftly",
+      title: "Why Shiftly Health?",
+      icon: Target,
+      description: "Features that set us apart from competitors",
     },
     {
       id: "facility_profile",
@@ -173,7 +183,7 @@ export default function EmployerOnboardingWizard({ user, onComplete, onSkip }) {
 
   const handleNext = async () => {
     // Validate and save at specific steps
-    if (currentStep === 1) { // Facility profile step
+    if (currentStep === 2) { // Facility profile step
       if (!facilityData.facility_name || !facilityData.facility_type || !facilityData.phone) {
         alert("Please fill in all required fields");
         return;
@@ -234,7 +244,10 @@ export default function EmployerOnboardingWizard({ user, onComplete, onSkip }) {
       case 0: // Welcome
         return (
           <div className="space-y-6">
-            <div className="bg-gradient-to-r from-blue-50 to-teal-50 rounded-xl p-8 border-2 border-blue-200">
+            <div className="text-center mb-6">
+              <Logo size="large" className="justify-center mb-4" />
+            </div>
+            <div className="bg-gradient-to-r from-sky-50 to-blue-50 rounded-xl p-8 border-2 border-sky-200">
               <h3 className="text-2xl font-bold text-gray-900 mb-4 text-center">
                 Welcome to the Future of Healthcare Staffing! 🚀
               </h3>
@@ -314,7 +327,93 @@ export default function EmployerOnboardingWizard({ user, onComplete, onSkip }) {
           </div>
         );
 
-      case 1: // Facility Profile
+      case 1: // Why Shiftly - NEW STEP
+        return (
+          <div className="space-y-6">
+            <div className="text-center mb-4">
+              <h3 className="text-xl font-bold text-gray-900">
+                Features That Make Shiftly Health Different
+              </h3>
+              <p className="text-gray-600">No other platform offers all of this</p>
+            </div>
+
+            <div className="grid gap-4">
+              <Card className="border-2 border-sky-200 bg-sky-50">
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-4">
+                    <div className="w-14 h-14 bg-sky-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <Target className="w-8 h-8 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-gray-900 text-lg mb-1">AI-Powered Smart Matching</h4>
+                      <p className="text-gray-700">
+                        Our algorithm matches staff based on <strong>skills, experience, location, ratings, 
+                        and availability</strong>. Get 95% match accuracy for better hires.
+                      </p>
+                      <Badge className="mt-2 bg-sky-600">15-Minute Average Fill Time</Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-2 border-green-200 bg-green-50">
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-4">
+                    <div className="w-14 h-14 bg-green-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <DollarSign className="w-8 h-8 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-gray-900 text-lg mb-1">Save 40% vs. Traditional Agencies</h4>
+                      <p className="text-gray-700">
+                        Only <strong>5% platform fee</strong> compared to 40-60% agency markups. 
+                        Direct payments via Stripe Connect mean more savings.
+                      </p>
+                      <Badge className="mt-2 bg-green-600">Transparent Pricing</Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-2 border-purple-200 bg-purple-50">
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-4">
+                    <div className="w-14 h-14 bg-purple-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <MessageSquare className="w-8 h-8 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-gray-900 text-lg mb-1">Real-Time In-App Messaging</h4>
+                      <p className="text-gray-700">
+                        Direct messaging, shift-specific chats, and facility-wide announcements. 
+                        <strong>Push notifications</strong> ensure nothing is missed.
+                      </p>
+                      <Badge className="mt-2 bg-purple-600">Built-In Communication</Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-2 border-orange-200 bg-orange-50">
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-4">
+                    <div className="w-14 h-14 bg-orange-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <BarChart3 className="w-8 h-8 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-gray-900 text-lg mb-1">Market Analytics & PDF Reports</h4>
+                      <p className="text-gray-700">
+                        <strong>Downloadable reports</strong> with competitive pricing data, fill rates, 
+                        and market recommendations for data-driven decisions.
+                      </p>
+                      <Badge className="mt-2 bg-orange-600">Exclusive Feature</Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        );
+
+      case 2: // Facility Profile
         return (
           <div className="space-y-6">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -456,7 +555,7 @@ export default function EmployerOnboardingWizard({ user, onComplete, onSkip }) {
           </div>
         );
 
-      case 2: // First Shift (Preview only in wizard)
+      case 3: // First Shift (Preview only in wizard)
         return (
           <div className="space-y-6">
             <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
@@ -545,7 +644,7 @@ export default function EmployerOnboardingWizard({ user, onComplete, onSkip }) {
           </div>
         );
 
-      case 3: // Review Process
+      case 4: // Review Process
         return (
           <div className="space-y-6">
             <div className="bg-teal-50 border border-teal-200 rounded-lg p-4">
@@ -643,7 +742,7 @@ export default function EmployerOnboardingWizard({ user, onComplete, onSkip }) {
           </div>
         );
 
-      case 4: // Advanced Features
+      case 5: // Advanced Features
         return (
           <div className="space-y-6">
             <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
@@ -761,7 +860,7 @@ export default function EmployerOnboardingWizard({ user, onComplete, onSkip }) {
           </div>
         );
 
-      case 5: // Payment Setup
+      case 6: // Payment Setup
         return (
           <div className="space-y-6">
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -847,7 +946,7 @@ export default function EmployerOnboardingWizard({ user, onComplete, onSkip }) {
 
                   <div className="bg-white rounded-lg p-4 border-2 border-teal-300">
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-semibold text-teal-900">HealthStaff Connect:</span>
+                      <span className="text-sm font-semibold text-teal-900">Shiftly Health:</span>
                       <span className="text-lg font-bold text-teal-600">$432</span>
                     </div>
                     <p className="text-xs text-gray-600">
@@ -873,7 +972,7 @@ export default function EmployerOnboardingWizard({ user, onComplete, onSkip }) {
           </div>
         );
 
-      case 6: // Complete
+      case 7: // Complete
         return (
           <div className="space-y-6">
             <div className="bg-gradient-to-r from-green-50 to-teal-50 rounded-xl p-8 border-2 border-green-200 text-center">

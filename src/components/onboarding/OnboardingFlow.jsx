@@ -34,7 +34,7 @@ import { Card, CardContent } from "@/components/ui/card";
 const STAFF_ONBOARDING_STEPS = [
   {
     id: "welcome",
-    title: "Welcome to HealthStaff Connect! 🎉",
+    title: "Welcome to Shiftly Health! 🎉",
     icon: Sparkles,
     description: "Let's get you set up to find your next healthcare shift in minutes.",
     content: (
@@ -282,7 +282,7 @@ const STAFF_ONBOARDING_STEPS = [
 const EMPLOYER_ONBOARDING_STEPS = [
   {
     id: "welcome",
-    title: "Welcome to HealthStaff Connect! 🏥",
+    title: "Welcome to Shiftly Health! 🏥",
     icon: Sparkles,
     description: "Let's get you set up to fill shifts in minutes, not days.",
     content: (
