@@ -9,6 +9,7 @@ import { Shield, Briefcase, Building2, ArrowRight, Clock, TrendingUp, CheckCircl
 import { Badge } from "@/components/ui/badge";
 import OnboardingFlow from "../components/onboarding/OnboardingFlow";
 import EmployerOnboardingWizard from "../components/onboarding/EmployerOnboardingWizard";
+import StaffOnboardingWizard from "../components/onboarding/StaffOnboardingWizard";
 
 export default function Welcome() {
   const navigate = useNavigate();
@@ -128,12 +129,11 @@ export default function Welcome() {
 
   return (
     <>
-      {showOnboarding && (
-        <OnboardingFlow
-          userType={selectedUserType}
+      {showOnboarding && selectedUserType === 'staff' && (
+        <StaffOnboardingWizard
+          user={user}
           onComplete={handleOnboardingComplete}
           onSkip={handleSkipOnboarding}
-          // user={user} removed based on outline
         />
       )}
 
