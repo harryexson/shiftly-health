@@ -90,7 +90,7 @@ export default function Messages() {
             <h2>You have a new message</h2>
             <p><strong>From:</strong> ${user.full_name || user.email}</p>
             <p><strong>Message:</strong> ${text}</p>
-            <p>Log in to HealthStaff Connect to reply.</p>
+            <p>Log in to Shiftly Health to reply.</p>
           `
         });
 
