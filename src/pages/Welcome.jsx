@@ -987,9 +987,9 @@ export default function Welcome() {
                 <Phone className="w-4 h-4" />
                 <span>1-800-STAFFING</span>
               </a>
-              <a href="mailto:support@healthstaffconnect.com" className="flex items-center justify-center gap-2 text-white hover:text-teal-300 transition-colors">
+              <a href="mailto:support@shiftlyhealth.com" className="flex items-center justify-center gap-2 text-white hover:text-teal-300 transition-colors">
                 <Mail className="w-4 h-4" />
-                <span>support@healthstaffconnect.com</span>
+                <span>support@shiftlyhealth.com</span>
               </a>
             </div>
           </div>
