@@ -40,6 +40,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import NotificationCenter from "@/components/notifications/NotificationCenter";
+import Logo from "@/components/branding/Logo";
 import { useQuery } from '@tanstack/react-query';
 
 const roleNavigationMap = {
@@ -135,7 +136,7 @@ export default function Layout({ children, currentPageName }) {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-teal-50">
-        <div className="animate-pulse text-blue-600 text-xl font-medium">Loading HealthStaff Connect...</div>
+        <div className="animate-pulse text-blue-600 text-xl font-medium">Loading Shiftly Health...</div>
       </div>
     );
   }
@@ -165,16 +166,11 @@ export default function Layout({ children, currentPageName }) {
       <div className="min-h-screen flex w-full bg-gradient-to-br from-gray-50 via-blue-50/30 to-teal-50/30">
         <Sidebar className="border-r border-blue-100/50 bg-white/80 backdrop-blur-sm">
           <SidebarHeader className="border-b border-blue-100/50 p-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-teal-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-                <Shield className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h2 className="font-bold text-gray-900 text-lg">HealthStaff Connect</h2>
-                <p className="text-xs text-gray-500 capitalize">{userRole} Portal</p>
-              </div>
-            </div>
-          </SidebarHeader>
+                          <div className="flex flex-col gap-2">
+                            <Logo size="default" />
+                            <p className="text-xs text-gray-500 capitalize ml-1">{userRole} Portal</p>
+                          </div>
+                        </SidebarHeader>
           
           <SidebarContent className="p-3">
             <SidebarGroup>
@@ -244,9 +240,7 @@ export default function Layout({ children, currentPageName }) {
           <header className="bg-white/80 backdrop-blur-sm border-b border-blue-100/50 px-6 py-4 md:hidden sticky top-0 z-10">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="hover:bg-blue-50 p-2 rounded-lg transition-colors duration-200" />
-              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text text-transparent">
-                HealthStaff Connect
-              </h1>
+              <Logo size="small" />
             </div>
           </header>
 
