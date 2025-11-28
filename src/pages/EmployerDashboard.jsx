@@ -1,4 +1,3 @@
-
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -105,7 +104,7 @@ export default function EmployerDashboard() {
                 <div>
                   <h3 className="text-xl font-bold text-gray-900 mb-2">Welcome to On-Demand Healthcare Staffing! 🏥</h3>
                   <p className="text-gray-700 mb-4">
-                    HealthStaff Connect helps you address the national healthcare worker shortage with technology-driven solutions:
+                    Shiftly Health helps you address the national healthcare worker shortage with technology-driven solutions:
                   </p>
                   <div className="grid md:grid-cols-4 gap-4">
                     <div className="flex items-start gap-2">

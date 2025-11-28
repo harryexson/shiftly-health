@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -298,7 +297,7 @@ export default function Welcome() {
                   </ul>
                 </div>
                 <div className="bg-white p-6 rounded-lg shadow border-2 border-teal-200">
-                  <p className="text-teal-600 font-semibold mb-2">✓ HealthStaff Connect</p>
+                  <p className="text-teal-600 font-semibold mb-2">✓ Shiftly Health</p>
                   <ul className="text-left space-y-2 text-sm text-gray-700">
                     <li>• <strong>Fill shifts in minutes</strong></li>
                     <li>• <strong>Save up to 40% on costs</strong></li>
@@ -603,7 +602,7 @@ export default function Welcome() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              How HealthStaff Connect Works
+              How Shiftly Health Works
             </h2>
             <p className="text-xl text-gray-600">
               Simple, fast, and efficient for everyone
@@ -744,7 +743,7 @@ export default function Welcome() {
               Trusted by Healthcare Professionals & Facilities
             </h2>
             <p className="text-xl text-gray-600">
-              See what our users are saying about HealthStaff Connect
+              See what our users are saying about Shiftly Health
             </p>
           </div>
 
@@ -757,7 +756,7 @@ export default function Welcome() {
                   ))}
                 </div>
                 <p className="text-gray-700 mb-4 italic">
-                  "HealthStaff Connect saved our hospital during a critical staffing shortage. We filled 6 nursing shifts in under an hour. Incredible!"
+                  "Shiftly Health saved our hospital during a critical staffing shortage. We filled 6 nursing shifts in under an hour. Incredible!"
                 </p>
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
@@ -941,7 +940,7 @@ export default function Welcome() {
             Ready to Transform Healthcare Staffing?
           </h2>
           <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-            Join thousands of healthcare professionals and facilities already using HealthStaff Connect to solve their staffing challenges.
+            Join thousands of healthcare professionals and facilities already using Shiftly Health to solve their staffing challenges.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
@@ -1004,7 +1003,7 @@ export default function Welcome() {
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <Shield className="w-6 h-6 text-teal-500" />
-                <span className="text-white font-bold text-lg">HealthStaff Connect</span>
+                <span className="text-white font-bold text-lg">Shiftly Health</span>
               </div>
               <p className="text-sm">
                 The leading on-demand healthcare staffing platform connecting professionals with facilities.
@@ -1043,7 +1042,7 @@ export default function Welcome() {
           </div>
 
           <div className="border-t border-gray-800 pt-8 text-center text-sm">
-            <p>&copy; 2024 HealthStaff Connect. All rights reserved.</p>
+            <p>&copy; 2024 Shiftly Health. All rights reserved.</p>
           </div>
         </div>
       </footer>

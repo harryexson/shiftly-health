@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(24);
     doc.setFont('helvetica', 'bold');
-    doc.text('HealthStaff Connect', margin, 25);
+    doc.text('Shiftly Health', margin, 25);
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
     doc.text('Market Analysis & Competitive Pricing Report', margin, 35);
@@ -212,7 +212,7 @@ Deno.serve(async (req) => {
     doc.rect(0, footerY - 5, pageWidth, 25, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(8);
-    doc.text('HealthStaff Connect - Healthcare Staffing Platform', margin, footerY + 5);
+    doc.text('Shiftly Health - Healthcare Staffing Platform', margin, footerY + 5);
     doc.text(`Report generated for: ${user.email}`, margin, footerY + 10);
     doc.text('Confidential - For internal use only', pageWidth - margin - 50, footerY + 5);
 

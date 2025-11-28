@@ -1,4 +1,3 @@
-
 import React from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -69,7 +68,7 @@ export default function StaffDashboard() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
               <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text text-transparent mb-2">
-                Welcome Back, {user?.full_name || 'Healthcare Professional'}!
+                Welcome to Shiftly Health, {user?.full_name || 'Healthcare Professional'}!
               </h1>
               <p className="text-gray-600 text-lg">Ready to find your next shift opportunity?</p>
               <p className="text-sm text-gray-500 mt-2">
