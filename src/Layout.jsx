@@ -63,7 +63,8 @@ const roleNavigationMap = {
     { title: "Messages", url: createPageUrl("Messages"), icon: MessageSquare },
     { title: "Analytics", url: createPageUrl("AnalyticsDashboard"), icon: TrendingUp },
     { title: "Team Management", url: createPageUrl("FacilityAdmin"), icon: Users },
-    { title: "My Profile", url: createPageUrl("EmployerProfile"), icon: Building2 },
+    { title: "Billing", url: createPageUrl("Billing"), icon: DollarSign },
+          { title: "My Profile", url: createPageUrl("EmployerProfile"), icon: Building2 },
   ],
   admin: [
     { title: "Dashboard", url: createPageUrl("AdminDashboard"), icon: Shield },

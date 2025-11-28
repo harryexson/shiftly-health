@@ -3,7 +3,7 @@ import Stripe from 'npm:stripe';
 
 const stripe = new Stripe(Deno.env.get("STRIPE_API_KEY"));
 
-Deno:serve(async (req) => {
+Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
