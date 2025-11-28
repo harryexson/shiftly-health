@@ -99,10 +99,10 @@ export default function PostShift() {
       });
 
       // Find matching staff members and notify them
-      const allStaff = await base44.asServiceRole.entities.StaffProfile.filter({
-        staff_type: shiftData.staff_type_required,
-        profile_status: 'active'
-      });
+      const allStaff = await base44.entities.StaffProfile.filter({
+                staff_type: shiftData.staff_type_required,
+                profile_status: 'active'
+              });
 
       // Filter staff based on preferences and location
       const matchingStaff = allStaff.filter(staff => {
@@ -142,16 +142,16 @@ export default function PostShift() {
       // Send notifications to matching staff
       const notificationPromises = matchingStaff.slice(0, 50).map(async (staff) => {
         // Check notification preferences
-        const prefs = await base44.asServiceRole.entities.NotificationPreferences.filter({
-          user_email: staff.user_email
-        });
+        const prefs = await base44.entities.NotificationPreferences.filter({
+                      user_email: staff.user_email
+                    });
 
         const shouldNotify = prefs.length === 0 || 
           (prefs[0].push_notifications?.enabled !== false && 
            prefs[0].push_notifications?.new_shift_matches !== false);
 
         if (shouldNotify) {
-          await base44.asServiceRole.entities.Notification.create({
+          await base44.entities.Notification.create({
             user_email: staff.user_email,
             type: shiftData.urgent ? 'urgent_shift' : 'shift_offer',
             title: shiftData.urgent ? `🚨 Urgent Shift Available!` : `New Shift Match: ${shiftData.title}`,
@@ -168,7 +168,7 @@ export default function PostShift() {
             prefs[0].email_notifications?.new_shift_matches !== false;
 
           if (shouldEmail) {
-            await base44.asServiceRole.integrations.Core.SendEmail({
+            await base44.integrations.Core.SendEmail({
               to: staff.user_email,
               subject: shiftData.urgent ? `🚨 Urgent Shift Match!` : `New Shift Match: ${shiftData.title}`,
               body: `
