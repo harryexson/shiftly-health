@@ -7,7 +7,6 @@ import Welcome from './pages/Welcome';
 import StaffProfile from './pages/StaffProfile';
 import EmployerProfile from './pages/EmployerProfile';
 import MyApplications from './pages/MyApplications';
-import Billing from './pages/Billing';
 import ManageShifts from './pages/ManageShifts';
 import Notifications from './pages/Notifications';
 import UserManagement from './pages/UserManagement';
@@ -50,7 +49,6 @@ export const PAGES = {
     "StaffProfile": StaffProfile,
     "EmployerProfile": EmployerProfile,
     "MyApplications": MyApplications,
-    "Billing": Billing,
     "ManageShifts": ManageShifts,
     "Notifications": Notifications,
     "UserManagement": UserManagement,
