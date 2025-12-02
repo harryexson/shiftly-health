@@ -37,6 +37,7 @@ import ShiftTemplates from './pages/ShiftTemplates';
 import StaffAvailability from './pages/StaffAvailability';
 import Home from './pages/Home';
 import Billing from './pages/Billing';
+import FacilityDashboard from './pages/FacilityDashboard';
 import __Layout from './Layout.jsx';
 
 
@@ -80,6 +81,7 @@ export const PAGES = {
     "StaffAvailability": StaffAvailability,
     "Home": Home,
     "Billing": Billing,
+    "FacilityDashboard": FacilityDashboard,
 }
 
 export const pagesConfig = {

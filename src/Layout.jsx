@@ -56,6 +56,7 @@ const roleNavigationMap = {
   ],
   employer: [
     { title: "Dashboard", url: createPageUrl("EmployerDashboard"), icon: LayoutDashboard },
+        { title: "Management Center", url: createPageUrl("FacilityDashboard"), icon: Building2 },
     { title: "Calendar View", url: createPageUrl("ShiftCalendar"), icon: Calendar },
     { title: "Post Shift", url: createPageUrl("PostShift"), icon: Briefcase },
     { title: "Shift Templates", url: createPageUrl("ShiftTemplates"), icon: FileText },
