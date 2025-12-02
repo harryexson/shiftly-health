@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Search, 
   Filter, 
@@ -20,8 +21,10 @@ import {
   FileText,
   Award,
   Phone,
-  Mail
+  Mail,
+  Shield
 } from "lucide-react";
+import StaffCredentialsViewer from "./StaffCredentialsViewer";
 import { format } from "date-fns";
 import {
   Dialog,
@@ -319,74 +322,120 @@ export default function FacilityApplicants({ user, applications, shifts }) {
 
       {/* Profile Dialog */}
       <Dialog open={showProfileDialog} onOpenChange={setShowProfileDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Applicant Profile</DialogTitle>
+            <DialogTitle>Applicant Profile & Credentials</DialogTitle>
           </DialogHeader>
           {selectedApplication && (
-            <div className="space-y-4">
-              {(() => {
-                const profile = getStaffProfile(selectedApplication.staff_email);
-                return (
-                  <>
-                    <div className="flex items-center gap-4">
-                      <Avatar className="w-20 h-20">
-                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-teal-500 text-white text-2xl">
-                          {profile?.full_name?.charAt(0) || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <h3 className="text-xl font-bold">{profile?.full_name || 'Unknown'}</h3>
-                        <p className="text-gray-600 capitalize">{profile?.staff_type?.replace('_', ' ')}</p>
-                        <div className="flex gap-3 mt-2 text-sm">
-                          <span className="flex items-center gap-1">
-                            <Mail className="w-4 h-4" />
-                            {selectedApplication.staff_email}
-                          </span>
-                          {profile?.phone && (
+            <Tabs defaultValue="profile" className="w-full">
+              <TabsList className="w-full">
+                <TabsTrigger value="profile" className="flex-1">Profile</TabsTrigger>
+                <TabsTrigger value="credentials" className="flex-1">
+                  <Shield className="w-4 h-4 mr-1" />
+                  Credentials
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="profile" className="space-y-4 mt-4">
+                {(() => {
+                  const profile = getStaffProfile(selectedApplication.staff_email);
+                  return (
+                    <>
+                      <div className="flex items-center gap-4">
+                        <Avatar className="w-20 h-20">
+                          <AvatarFallback className="bg-gradient-to-br from-blue-500 to-teal-500 text-white text-2xl">
+                            {profile?.full_name?.charAt(0) || 'U'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-xl font-bold">{profile?.full_name || 'Unknown'}</h3>
+                            {profile?.verification_status === 'verified' && (
+                              <Badge className="bg-green-100 text-green-700">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Verified
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-gray-600 capitalize">{profile?.staff_type?.replace('_', ' ')}</p>
+                          <div className="flex flex-wrap gap-3 mt-2 text-sm">
                             <span className="flex items-center gap-1">
-                              <Phone className="w-4 h-4" />
-                              {profile.phone}
+                              <Mail className="w-4 h-4" />
+                              {selectedApplication.staff_email}
                             </span>
-                          )}
+                            {profile?.phone && (
+                              <span className="flex items-center gap-1">
+                                <Phone className="w-4 h-4" />
+                                {profile.phone}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {profile?.bio && (
-                      <div>
-                        <h4 className="font-semibold mb-2">About</h4>
-                        <p className="text-gray-600">{profile.bio}</p>
-                      </div>
-                    )}
+                      {profile?.bio && (
+                        <div>
+                          <h4 className="font-semibold mb-2">About</h4>
+                          <p className="text-gray-600">{profile.bio}</p>
+                        </div>
+                      )}
 
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div>
-                        <h4 className="font-semibold mb-2">Experience</h4>
-                        <p className="text-gray-600">{profile?.years_experience || 0} years</p>
-                      </div>
-                      <div>
-                        <h4 className="font-semibold mb-2">Desired Rate</h4>
-                        <p className="text-gray-600">${profile?.hourly_rate || 'Not specified'}/hr</p>
-                      </div>
-                    </div>
-
-                    {profile?.qualifications?.length > 0 && (
-                      <div>
-                        <h4 className="font-semibold mb-2">Qualifications</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {profile.qualifications.map((qual, idx) => (
-                            <Badge key={idx} variant="secondary">{qual}</Badge>
-                          ))}
+                      <div className="grid md:grid-cols-3 gap-4">
+                        <div className="p-3 bg-gray-50 rounded-lg">
+                          <h4 className="font-semibold text-sm text-gray-600">Experience</h4>
+                          <p className="text-lg font-bold text-gray-900">{profile?.years_experience || 0} years</p>
+                        </div>
+                        <div className="p-3 bg-gray-50 rounded-lg">
+                          <h4 className="font-semibold text-sm text-gray-600">Desired Rate</h4>
+                          <p className="text-lg font-bold text-gray-900">${profile?.hourly_rate || '--'}/hr</p>
+                        </div>
+                        <div className="p-3 bg-gray-50 rounded-lg">
+                          <h4 className="font-semibold text-sm text-gray-600">Match Score</h4>
+                          <p className="text-lg font-bold text-blue-600">{selectedApplication.match_score || 0}%</p>
                         </div>
                       </div>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
+
+                      {profile?.qualifications?.length > 0 && (
+                        <div>
+                          <h4 className="font-semibold mb-2">Qualifications</h4>
+                          <div className="flex flex-wrap gap-2">
+                            {profile.qualifications.map((qual, idx) => (
+                              <Badge key={idx} variant="secondary">{qual}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {profile?.license_number && (
+                        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <h4 className="font-semibold text-blue-900 mb-1">License Information</h4>
+                          <div className="grid md:grid-cols-3 gap-2 text-sm">
+                            <div>
+                              <span className="text-blue-700">Number:</span> {profile.license_number}
+                            </div>
+                            <div>
+                              <span className="text-blue-700">State:</span> {profile.license_state || 'N/A'}
+                            </div>
+                            <div>
+                              <span className="text-blue-700">Expires:</span> {profile.license_expiry ? new Date(profile.license_expiry).toLocaleDateString() : 'N/A'}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </TabsContent>
+              
+              <TabsContent value="credentials" className="mt-4">
+                <StaffCredentialsViewer 
+                  staffEmail={selectedApplication.staff_email}
+                  employerEmail={user?.email}
+                />
+              </TabsContent>
+            </Tabs>
           )}
-          <DialogFooter>
+          <DialogFooter className="mt-4">
             <Button variant="outline" onClick={() => setShowProfileDialog(false)}>
               Close
             </Button>

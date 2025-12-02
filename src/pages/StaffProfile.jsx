@@ -89,6 +89,12 @@ export default function StaffProfile() {
     enabled: !!user,
   });
 
+  const { data: documentRequests = [] } = useQuery({
+    queryKey: ['document-requests', user?.email],
+    queryFn: () => base44.entities.DocumentRequest.filter({ staff_email: user?.email }),
+    enabled: !!user,
+  });
+
   const saveMutation = useMutation({
     mutationFn: async (profileData) => {
       if (existingProfile) {
@@ -624,6 +630,36 @@ export default function StaffProfile() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Pending Document Requests from Facilities */}
+              {documentRequests.filter(r => r.status === 'pending').length > 0 && (
+                <div className="space-y-3 mb-4">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-blue-600" />
+                    <Label className="text-blue-900">Requested by Facilities:</Label>
+                  </div>
+                  {documentRequests.filter(r => r.status === 'pending').map((request) => (
+                    <div key={request.id} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <FileText className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-blue-900">{request.document_name}</p>
+                          <p className="text-xs text-blue-700">
+                            {request.reason || 'Requested for verification'}
+                            {request.due_date && ` • Due: ${new Date(request.due_date).toLocaleDateString()}`}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge className="bg-blue-600 text-white">Action Required</Badge>
+                    </div>
+                  ))}
+                  <p className="text-xs text-blue-700">
+                    💡 Upload the requested documents below to complete verification
+                  </p>
+                </div>
+              )}
+
               {complianceRecords.length > 0 && (
                 <div className="space-y-3 mb-4">
                   <Label>Uploaded Documents:</Label>
