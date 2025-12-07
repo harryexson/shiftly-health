@@ -484,6 +484,66 @@ export default function ReportsCenter() {
           </Card>
         </div>
 
+        {/* License Renewals Section */}
+        <Card className="border-orange-100/50 bg-orange-50/30">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-orange-600" />
+              License Renewals - Expiring Soon
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {expiringLicenses.length === 0 ? (
+              <div className="text-center py-8">
+                <CheckCircle className="w-12 h-12 text-green-300 mx-auto mb-3" />
+                <p className="text-gray-600">No licenses expiring in the next 60 days</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {expiringLicenses.map((license) => {
+                  const urgency = license.days_until_expiry <= 7 ? 'critical' : 
+                                  license.days_until_expiry <= 30 ? 'warning' : 'info';
+                  
+                  return (
+                    <div 
+                      key={license.id}
+                      className={`p-4 rounded-lg border-2 ${
+                        urgency === 'critical' ? 'bg-red-50 border-red-300' :
+                        urgency === 'warning' ? 'bg-orange-50 border-orange-300' :
+                        'bg-yellow-50 border-yellow-300'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <p className="font-semibold text-gray-900">{license.document_name}</p>
+                            <Badge className={
+                              urgency === 'critical' ? 'bg-red-600 text-white' :
+                              urgency === 'warning' ? 'bg-orange-600 text-white' :
+                              'bg-yellow-600 text-white'
+                            }>
+                              {license.days_until_expiry} days left
+                            </Badge>
+                          </div>
+                          <div className="text-sm text-gray-700 space-y-1">
+                            <p><strong>Staff:</strong> {license.user_email}</p>
+                            <p><strong>Expiry Date:</strong> {format(new Date(license.expiry_date), 'MMM dd, yyyy')}</p>
+                            <p className="capitalize"><strong>Type:</strong> {license.record_type.replace(/_/g, ' ')}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {urgency === 'critical' && <AlertTriangle className="w-6 h-6 text-red-600" />}
+                          {urgency === 'warning' && <Clock className="w-6 h-6 text-orange-600" />}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Staff Compliance Table */}
         <Card className="border-blue-100/50">
           <CardHeader>

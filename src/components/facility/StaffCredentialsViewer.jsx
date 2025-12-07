@@ -107,7 +107,26 @@ export default function StaffCredentialsViewer({ staffEmail, employerEmail, onCl
     }
   });
 
-  const getStatusBadge = (status) => {
+  const isRenewalDue = (expiryDate) => {
+    if (!expiryDate) return false;
+    const today = new Date();
+    const expiry = new Date(expiryDate);
+    const daysUntilExpiry = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+    return daysUntilExpiry > 0 && daysUntilExpiry <= 60;
+  };
+
+  const getStatusBadge = (status, expiryDate = null) => {
+    // Check for renewal due first
+    if (status === 'verified' && isRenewalDue(expiryDate)) {
+      const daysLeft = Math.ceil((new Date(expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
+      return (
+        <Badge className="bg-orange-100 text-orange-700 animate-pulse">
+          <Calendar className="w-3 h-3 mr-1" />
+          Renewal Due ({daysLeft}d)
+        </Badge>
+      );
+    }
+
     switch (status) {
       case 'verified':
         return <Badge className="bg-green-100 text-green-700"><CheckCircle className="w-3 h-3 mr-1" />Verified</Badge>;
@@ -225,7 +244,7 @@ export default function StaffCredentialsViewer({ staffEmail, employerEmail, onCl
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {getStatusBadge(record.verification_status)}
+                  {getStatusBadge(record.verification_status, record.expiry_date)}
                   {record.document_url && (
                     <a href={record.document_url} target="_blank" rel="noopener noreferrer">
                       <Button variant="ghost" size="sm">

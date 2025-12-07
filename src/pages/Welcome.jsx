@@ -10,12 +10,14 @@ import { Badge } from "@/components/ui/badge";
 import OnboardingFlow from "../components/onboarding/OnboardingFlow";
 import EmployerOnboardingWizard from "../components/onboarding/EmployerOnboardingWizard";
 import StaffOnboardingWizard from "../components/onboarding/StaffOnboardingWizard";
+import StaffGuidedOnboarding from "../components/onboarding/StaffGuidedOnboarding";
 
 export default function Welcome() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showEmployerWizard, setShowEmployerWizard] = useState(false);
+  const [showGuidedOnboarding, setShowGuidedOnboarding] = useState(false);
   const [selectedUserType, setSelectedUserType] = useState(null);
 
   React.useEffect(() => {
@@ -55,7 +57,7 @@ export default function Welcome() {
       if (role === 'employer') {
         setShowEmployerWizard(true);
       } else {
-        setShowOnboarding(true);
+        setShowGuidedOnboarding(true);
       }
     } else {
       // Skip directly to profile creation
@@ -129,6 +131,17 @@ export default function Welcome() {
 
   return (
     <>
+      {showGuidedOnboarding && (
+        <StaffGuidedOnboarding
+          user={user}
+          open={showGuidedOnboarding}
+          onClose={() => {
+            setShowGuidedOnboarding(false);
+            navigate(createPageUrl("StaffDashboard"));
+          }}
+        />
+      )}
+
       {showOnboarding && selectedUserType === 'staff' && (
         <StaffOnboardingWizard
           user={user}
