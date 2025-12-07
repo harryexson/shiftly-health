@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { X, CheckCircle, XCircle, Clock, FileText, Shield, Award, Book, Upload, Sun, Moon, Sunrise, Calendar } from "lucide-react";
 import HelpTooltip from "../components/onboarding/HelpTooltip";
+import BackgroundCheckStatus from "../components/verification/BackgroundCheckStatus";
 
 const QUALIFICATIONS = [
   "CPR", "First Aid", "Mental Health Training", "ISP Training",
@@ -617,6 +618,13 @@ export default function StaffProfile() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Background Check Status */}
+          <BackgroundCheckStatus
+            staffProfile={existingProfile}
+            complianceRecords={complianceRecords}
+            onUpdate={() => queryClient.invalidateQueries(['compliance-records'])}
+          />
 
           {/* Credentials & Documents */}
           <Card className="border-teal-100/50">
