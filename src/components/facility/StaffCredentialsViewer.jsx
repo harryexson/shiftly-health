@@ -21,6 +21,7 @@ import {
   Calendar
 } from "lucide-react";
 import { format } from "date-fns";
+import LicenseVerificationButton from "../verification/LicenseVerificationButton";
 import {
   Dialog,
   DialogContent,
@@ -165,6 +166,10 @@ export default function StaffCredentialsViewer({ staffEmail, employerEmail, onCl
       <div>
         <div className="flex items-center justify-between mb-3">
           <h4 className="font-semibold text-gray-900">Uploaded Credentials</h4>
+          <LicenseVerificationButton 
+            staffEmail={staffEmail} 
+            onVerificationComplete={() => queryClient.invalidateQueries(['staff-compliance'])}
+          />
         </div>
         
         {loadingRecords ? (
@@ -194,15 +199,29 @@ export default function StaffCredentialsViewer({ staffEmail, employerEmail, onCl
                     {getDocIcon(record.record_type)}
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900">{record.document_name}</p>
-                    <div className="flex items-center gap-2 text-xs text-gray-600">
-                      <span className="capitalize">{record.record_type.replace(/_/g, ' ')}</span>
-                      {record.expiry_date && (
-                        <span className={isDocumentExpired(record.expiry_date) ? 'text-red-600 font-medium' : ''}>
-                          • {isDocumentExpired(record.expiry_date) ? 'Expired' : 'Expires'}: {format(new Date(record.expiry_date), 'MMM d, yyyy')}
-                        </span>
-                      )}
-                    </div>
+                   <p className="font-medium text-gray-900">{record.document_name}</p>
+                   <div className="flex items-center gap-2 text-xs text-gray-600">
+                     <span className="capitalize">{record.record_type.replace(/_/g, ' ')}</span>
+                     {record.expiry_date && (
+                       <span className={isDocumentExpired(record.expiry_date) ? 'text-red-600 font-medium' : ''}>
+                         • {isDocumentExpired(record.expiry_date) ? 'Expired' : 'Expires'}: {format(new Date(record.expiry_date), 'MMM d, yyyy')}
+                       </span>
+                     )}
+                     {record.third_party_verification_id && record.record_type === 'background_check' && (
+                       <span className="text-blue-600">• Checkr ID: {record.third_party_verification_id.substring(0, 8)}...</span>
+                     )}
+                   </div>
+                   {record.verified_by && (
+                     <p className="text-xs text-gray-500 mt-1">
+                       Verified by {record.verified_by} on {format(new Date(record.verified_date), 'MMM d, yyyy')}
+                     </p>
+                   )}
+                   {record.notes && record.record_type === 'background_check' && (
+                     <p className="text-xs text-blue-600 mt-1">
+                       <Shield className="w-3 h-3 inline mr-1" />
+                       {record.notes.includes('Automated') ? 'Automated via Checkr' : 'Third-party verified'}
+                     </p>
+                   )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
