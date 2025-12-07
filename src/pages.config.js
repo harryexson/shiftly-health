@@ -38,6 +38,7 @@ import StaffAvailability from './pages/StaffAvailability';
 import Home from './pages/Home';
 import Billing from './pages/Billing';
 import FacilityDashboard from './pages/FacilityDashboard';
+import ReportsCenter from './pages/ReportsCenter';
 import __Layout from './Layout.jsx';
 
 
@@ -82,6 +83,7 @@ export const PAGES = {
     "Home": Home,
     "Billing": Billing,
     "FacilityDashboard": FacilityDashboard,
+    "ReportsCenter": ReportsCenter,
 }
 
 export const pagesConfig = {

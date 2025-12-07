@@ -71,6 +71,7 @@ const roleNavigationMap = {
     { title: "Dashboard", url: createPageUrl("AdminDashboard"), icon: Shield },
     { title: "User Approvals", url: createPageUrl("UserApprovals"), icon: UserCheck },
     { title: "Credential Verification", url: createPageUrl("CredentialVerification"), icon: Shield },
+    { title: "Reports Center", url: createPageUrl("ReportsCenter"), icon: FileText },
     { title: "Account Management", url: createPageUrl("AccountManagement"), icon: Users },
     { title: "Payment Management", url: createPageUrl("PaymentManagement"), icon: DollarSign },
     { title: "Payroll Management", url: createPageUrl("PayrollManagement"), icon: TrendingUp },
