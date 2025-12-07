@@ -27,9 +27,9 @@ import {
   ArrowRight,
   ArrowLeft,
   FileText,
-  Calendar
+  Calendar,
+  X
 } from "lucide-react";
-import { X } from "lucide-react";
 
 const QUALIFICATIONS = [
   "CPR", "First Aid", "Mental Health Training", "ISP Training",
@@ -69,6 +69,12 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
 
   const steps = [
     {
+      id: 'welcome',
+      title: 'Welcome',
+      icon: CheckCircle,
+      description: 'Platform overview'
+    },
+    {
       id: 'profile',
       title: 'Personal Information',
       icon: User,
@@ -79,6 +85,12 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
       title: 'Qualifications & Experience',
       icon: Award,
       description: 'Your certifications and skills'
+    },
+    {
+      id: 'availability',
+      title: 'Availability & Preferences',
+      icon: Calendar,
+      description: 'Set your schedule'
     },
     {
       id: 'credentials',
@@ -176,7 +188,7 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
   };
 
   const handleNext = async () => {
-    if (currentStep === 0 || currentStep === 1) {
+    if (currentStep === 1 || currentStep === 2 || currentStep === 3) {
       // Save profile data
       await saveProfileMutation.mutateAsync({
         ...formData,
@@ -184,7 +196,7 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
       });
     }
 
-    if (currentStep === 3) {
+    if (currentStep === 5) {
       // Initiate background check
       await initiateBackgroundCheckMutation.mutateAsync();
     }
@@ -228,15 +240,31 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
     }));
   };
 
+  const toggleShiftTime = (time) => {
+    setFormData(prev => ({
+      ...prev,
+      shift_preferences: {
+        ...prev.shift_preferences,
+        preferred_shift_times: prev.shift_preferences.preferred_shift_times.includes(time)
+          ? prev.shift_preferences.preferred_shift_times.filter(t => t !== time)
+          : [...prev.shift_preferences.preferred_shift_times, time]
+      }
+    }));
+  };
+
   const canProceed = () => {
     switch (currentStep) {
-      case 0:
+      case 0: // Welcome
+        return true;
+      case 1: // Profile
         return formData.full_name && formData.phone && formData.staff_type;
-      case 1:
+      case 2: // Qualifications
         return formData.years_experience;
-      case 2:
+      case 3: // Availability
+        return formData.shift_preferences.preferred_shift_times.length > 0;
+      case 4: // Credentials
         return uploadedDocs.length > 0;
-      case 3:
+      case 5: // Background
         return formData.address && formData.city && formData.state && formData.zip_code;
       default:
         return true;
@@ -283,6 +311,72 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
         {/* Step Content */}
         <div className="space-y-6">
           {currentStep === 0 && (
+            <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-teal-50">
+              <CardContent className="pt-8">
+                <div className="text-center mb-6">
+                  <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Shield className="w-12 h-12 text-blue-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    Welcome to Shiftly Health!
+                  </h2>
+                  <p className="text-gray-700 max-w-2xl mx-auto">
+                    The fastest way to find healthcare shifts that match your skills, schedule, and location.
+                  </p>
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-4 max-w-3xl mx-auto">
+                  <div className="bg-white p-4 rounded-lg border border-blue-200">
+                    <Clock className="w-8 h-8 text-blue-600 mb-3" />
+                    <h3 className="font-semibold text-gray-900 mb-2">Find Shifts Fast</h3>
+                    <p className="text-sm text-gray-600">
+                      Browse hundreds of shifts and apply in seconds. Get matched instantly based on your location and qualifications.
+                    </p>
+                  </div>
+
+                  <div className="bg-white p-4 rounded-lg border border-teal-200">
+                    <CheckCircle className="w-8 h-8 text-teal-600 mb-3" />
+                    <h3 className="font-semibold text-gray-900 mb-2">Verified & Safe</h3>
+                    <p className="text-sm text-gray-600">
+                      All facilities are verified. Your credentials are protected. Background checks ensure safety for everyone.
+                    </p>
+                  </div>
+
+                  <div className="bg-white p-4 rounded-lg border border-purple-200">
+                    <Award className="w-8 h-8 text-purple-600 mb-3" />
+                    <h3 className="font-semibold text-gray-900 mb-2">Earn More</h3>
+                    <p className="text-sm text-gray-600">
+                      Competitive pay rates. Instant pay options available. Work as much or as little as you want.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-8 bg-white p-6 rounded-lg border border-gray-200 max-w-2xl mx-auto">
+                  <h3 className="font-semibold text-gray-900 mb-3">What to expect in this setup:</h3>
+                  <ul className="space-y-2 text-sm text-gray-700">
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                      <span><strong>5 minutes:</strong> Complete your profile and qualifications</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                      <span><strong>Upload credentials:</strong> License, certifications, and training documents</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                      <span><strong>Background check:</strong> Automated verification (24-48 hours)</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                      <span><strong>Start applying:</strong> Browse shifts while verification completes</span>
+                    </li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {currentStep === 1 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -343,7 +437,7 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
             </Card>
           )}
 
-          {currentStep === 1 && (
+          {currentStep === 2 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -518,7 +612,7 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
             </Card>
           )}
 
-          {currentStep === 3 && (
+          {currentStep === 5 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -588,7 +682,7 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
             </Card>
           )}
 
-          {currentStep === 4 && (
+          {currentStep === 6 && (
             <Card className="border-2 border-green-200 bg-green-50">
               <CardContent className="pt-8 text-center">
                 <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
