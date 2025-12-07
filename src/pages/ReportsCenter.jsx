@@ -80,6 +80,27 @@ export default function ReportsCenter() {
     enabled: !!user
   });
 
+  // License renewal tracking
+  const { data: expiringLicenses = [] } = useQuery({
+    queryKey: ['expiring-licenses'],
+    queryFn: async () => {
+      const allRecords = await base44.entities.ComplianceRecord.filter({
+        expiry_date: { $exists: true }
+      });
+      
+      const today = new Date();
+      return allRecords.filter(record => {
+        const expiryDate = new Date(record.expiry_date);
+        const daysUntilExpiry = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+        return daysUntilExpiry > 0 && daysUntilExpiry <= 60;
+      }).map(record => ({
+        ...record,
+        days_until_expiry: Math.ceil((new Date(record.expiry_date) - today) / (1000 * 60 * 60 * 24))
+      }));
+    },
+    enabled: !!user
+  });
+
   // Apply filters
   const filteredRecords = allRecords.filter(record => {
     const recordDate = new Date(record.created_date);
