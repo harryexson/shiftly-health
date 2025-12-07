@@ -25,6 +25,8 @@ export default function Messages() {
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messageText, setMessageText] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [showGroupMessageModal, setShowGroupMessageModal] = useState(false);
   const messagesEndRef = useRef(null);
   const queryClient = useQueryClient();
 
