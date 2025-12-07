@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Shield, CheckCircle, Clock, AlertTriangle, Loader2, RefreshCw } from "lucide-react";
+import { Shield, CheckCircle, Clock, AlertTriangle, Loader2, RefreshCw, ExternalLink } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function BackgroundCheckStatus({ staffProfile, complianceRecords, onUpdate }) {
