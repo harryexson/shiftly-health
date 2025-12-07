@@ -16,6 +16,7 @@ import {
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Button } from "@/components/ui/button";
+import BackgroundCheckPanel from "../components/admin/BackgroundCheckPanel";
 
 export default function AdminDashboard() {
   const [user, setUser] = React.useState(null);
@@ -217,6 +218,9 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Background Check Management */}
+        <BackgroundCheckPanel />
 
         {/* Management Sections */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
