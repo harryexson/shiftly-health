@@ -528,7 +528,7 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
             </Card>
           )}
 
-          {currentStep === 2 && (
+          {currentStep === 4 && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
