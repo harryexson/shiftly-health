@@ -15,10 +15,14 @@ import {
   Building2,
   Search,
   Paperclip,
-  X
+  X,
+  Reply,
+  CheckCheck
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import MessageThread from "../components/messages/MessageThread";
+import GroupMessageModal from "../components/messages/GroupMessageModal";
 
 export default function Messages() {
   const [user, setUser] = useState(null);
@@ -64,6 +68,8 @@ export default function Messages() {
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async ({ conversationId, text }) => {
+      const threadId = replyingTo?.thread_id || replyingTo?.id;
+      
       const message = await base44.entities.Message.create({
         conversation_id: conversationId,
         sender_email: user.email,
@@ -71,8 +77,18 @@ export default function Messages() {
         message_text: text,
         message_type: 'text',
         read_by: [user.email],
+        read_receipts: { [user.email]: new Date().toISOString() },
+        parent_message_id: replyingTo?.id || null,
+        thread_id: threadId || null,
         timestamp: new Date().toISOString()
       });
+
+      // Update reply count on parent message
+      if (replyingTo) {
+        await base44.entities.Message.update(replyingTo.id, {
+          reply_count: (replyingTo.reply_count || 0) + 1
+        });
+      }
 
       // Update conversation
       await base44.entities.Conversation.update(conversationId, {
@@ -87,10 +103,11 @@ export default function Messages() {
       for (const participantEmail of otherParticipants) {
         await base44.integrations.Core.SendEmail({
           to: participantEmail,
-          subject: `New message from ${user.full_name || user.email}`,
+          subject: replyingTo ? `Reply from ${user.full_name || user.email}` : `New message from ${user.full_name || user.email}`,
           body: `
-            <h2>You have a new message</h2>
+            <h2>${replyingTo ? 'Reply to your message' : 'You have a new message'}</h2>
             <p><strong>From:</strong> ${user.full_name || user.email}</p>
+            ${replyingTo ? `<p><strong>In reply to:</strong> "${replyingTo.message_text.substring(0, 100)}..."</p>` : ''}
             <p><strong>Message:</strong> ${text}</p>
             <p>Log in to Shiftly Health to reply.</p>
           `
@@ -99,9 +116,9 @@ export default function Messages() {
         await base44.entities.Notification.create({
           user_email: participantEmail,
           type: 'system_alert',
-          title: 'New Message',
+          title: replyingTo ? 'Reply to Your Message' : 'New Message',
           message: `${user.full_name || user.email}: ${text.substring(0, 50)}...`,
-          priority: 'medium',
+          priority: 'high',
           status: 'unread'
         });
       }
@@ -110,6 +127,7 @@ export default function Messages() {
     },
     onSuccess: () => {
       setMessageText("");
+      setReplyingTo(null);
       refetchMessages();
       refetchConversations();
       scrollToBottom();
@@ -119,13 +137,16 @@ export default function Messages() {
   // Mark messages as read
   const markAsReadMutation = useMutation({
     mutationFn: async (conversationId) => {
+      const timestamp = new Date().toISOString();
       const unreadMessages = messages.filter(m => 
         !m.read_by?.includes(user.email) && m.sender_email !== user.email
       );
 
       for (const msg of unreadMessages) {
+        const readReceipts = msg.read_receipts || {};
         await base44.entities.Message.update(msg.id, {
-          read_by: [...(msg.read_by || []), user.email]
+          read_by: [...(msg.read_by || []), user.email],
+          read_receipts: { ...readReceipts, [user.email]: timestamp }
         });
       }
     },
@@ -155,6 +176,10 @@ export default function Messages() {
     });
   };
 
+  const handleReply = (message) => {
+    setReplyingTo(message);
+  };
+
   const getConversationTitle = (convo) => {
     if (convo.title) return convo.title;
     
@@ -181,6 +206,32 @@ export default function Messages() {
 
   return (
     <div className="h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-teal-50/30 flex flex-col">
+      <div className="bg-white border-b border-blue-100/50 p-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text text-transparent">
+              Messages
+            </h1>
+            <p className="text-sm text-gray-600">Communicate with facilities and staff</p>
+          </div>
+          {user?.role !== 'staff' && (
+            <Button
+              onClick={() => setShowGroupMessageModal(true)}
+              className="bg-gradient-to-r from-blue-600 to-teal-600"
+            >
+              <Users className="w-4 h-4 mr-2" />
+              Group Message
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <GroupMessageModal
+        user={user}
+        open={showGroupMessageModal}
+        onClose={() => setShowGroupMessageModal(false)}
+      />
+
       <div className="flex-1 flex overflow-hidden p-4 gap-4">
         {/* Conversations List */}
         <Card className="w-80 flex flex-col border-blue-100/50">
@@ -301,51 +352,118 @@ export default function Messages() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {messages.map((msg) => {
+                      {messages.filter(m => !m.parent_message_id).map((msg) => {
                         const isOwn = msg.sender_email === user.email;
                         const isSystem = msg.message_type === 'system' || msg.message_type === 'announcement';
+                        const replies = messages.filter(m => m.parent_message_id === msg.id || m.thread_id === msg.id);
+                        const readReceipts = msg.read_receipts ? Object.keys(msg.read_receipts).filter(e => e !== user.email) : [];
 
                         if (isSystem) {
                           return (
                             <div key={msg.id} className="flex justify-center">
-                              <div className="bg-gray-100 text-gray-700 px-4 py-2 rounded-full text-sm max-w-md text-center">
-                                {msg.message_text}
+                              <div className="bg-purple-100 text-purple-800 px-4 py-2 rounded-full text-sm max-w-md text-center border border-purple-200">
+                                📢 {msg.message_text}
                               </div>
                             </div>
                           );
                         }
 
                         return (
-                          <div
-                            key={msg.id}
-                            className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
-                          >
-                            <div className={`flex gap-2 max-w-lg ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
-                              <Avatar className="w-8 h-8 flex-shrink-0">
-                                <AvatarFallback className={isOwn ? 'bg-blue-100' : 'bg-gray-200'}>
-                                  {msg.sender_name?.charAt(0) || msg.sender_email.charAt(0).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
-                                <div
-                                  className={`rounded-2xl px-4 py-2 ${
-                                    isOwn
-                                      ? 'bg-blue-600 text-white'
-                                      : 'bg-gray-100 text-gray-900'
-                                  }`}
-                                >
-                                  {!isOwn && (
-                                    <p className="text-xs font-semibold mb-1 opacity-70">
-                                      {msg.sender_name || msg.sender_email}
+                          <div key={msg.id}>
+                            <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                              <div className={`flex gap-2 max-w-lg ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+                                <Avatar className="w-8 h-8 flex-shrink-0">
+                                  <AvatarFallback className={isOwn ? 'bg-blue-100' : 'bg-gray-200'}>
+                                    {msg.sender_name?.charAt(0) || msg.sender_email.charAt(0).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
+                                  <div
+                                    className={`rounded-2xl px-4 py-2 ${
+                                      isOwn
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-100 text-gray-900'
+                                    }`}
+                                  >
+                                    {!isOwn && (
+                                      <p className="text-xs font-semibold mb-1 opacity-70">
+                                        {msg.sender_name || msg.sender_email}
+                                      </p>
+                                    )}
+                                    <p className="text-sm whitespace-pre-wrap break-words">
+                                      {msg.message_text}
                                     </p>
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-1 px-1">
+                                    <p className="text-xs text-gray-500">
+                                      {format(new Date(msg.timestamp || msg.created_date), 'h:mm a')}
+                                    </p>
+                                    {isOwn && readReceipts.length > 0 && (
+                                      <div className="flex items-center gap-1 text-xs text-blue-600">
+                                        <CheckCheck className="w-3 h-3" />
+                                        <span>Read</span>
+                                      </div>
+                                    )}
+                                    {msg.reply_count > 0 && (
+                                      <Badge variant="outline" className="text-xs h-5">
+                                        {msg.reply_count} {msg.reply_count === 1 ? 'reply' : 'replies'}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleReply(msg)}
+                                    className="h-6 text-xs mt-1 opacity-60 hover:opacity-100"
+                                  >
+                                    <Reply className="w-3 h-3 mr-1" />
+                                    Reply
+                                  </Button>
+                                  
+                                  {/* Thread Replies */}
+                                  {replies.length > 0 && (
+                                    <div className="mt-2 space-y-2 ml-4 border-l-2 border-gray-200 pl-3">
+                                      {replies.map((reply) => {
+                                        const isOwnReply = reply.sender_email === user.email;
+                                        const replyReadReceipts = reply.read_receipts ? Object.keys(reply.read_receipts).filter(e => e !== user.email) : [];
+                                        
+                                        return (
+                                          <div key={reply.id} className={`flex gap-2 ${isOwnReply ? 'flex-row-reverse' : 'flex-row'}`}>
+                                            <Avatar className="w-6 h-6 flex-shrink-0">
+                                              <AvatarFallback className={isOwnReply ? 'bg-blue-100 text-xs' : 'bg-gray-200 text-xs'}>
+                                                {reply.sender_name?.charAt(0) || 'U'}
+                                              </AvatarFallback>
+                                            </Avatar>
+                                            <div className={`flex flex-col ${isOwnReply ? 'items-end' : 'items-start'}`}>
+                                              <div
+                                                className={`rounded-xl px-3 py-2 text-sm ${
+                                                  isOwnReply
+                                                    ? 'bg-blue-500 text-white'
+                                                    : 'bg-gray-50 text-gray-900 border border-gray-200'
+                                                }`}
+                                              >
+                                                <p className="text-xs font-semibold mb-1 opacity-70">
+                                                  {reply.sender_name}
+                                                </p>
+                                                <p className="whitespace-pre-wrap break-words">
+                                                  {reply.message_text}
+                                                </p>
+                                              </div>
+                                              <div className="flex items-center gap-2 mt-1">
+                                                <p className="text-xs text-gray-500">
+                                                  {format(new Date(reply.timestamp || reply.created_date), 'h:mm a')}
+                                                </p>
+                                                {isOwnReply && replyReadReceipts.length > 0 && (
+                                                  <CheckCheck className="w-3 h-3 text-blue-600" />
+                                                )}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
                                   )}
-                                  <p className="text-sm whitespace-pre-wrap break-words">
-                                    {msg.message_text}
-                                  </p>
                                 </div>
-                                <p className="text-xs text-gray-500 mt-1 px-1">
-                                  {format(new Date(msg.timestamp || msg.created_date), 'h:mm a')}
-                                </p>
                               </div>
                             </div>
                           </div>
@@ -359,9 +477,28 @@ export default function Messages() {
 
               {/* Message Input */}
               <div className="border-t border-gray-200 p-4">
+                {replyingTo && (
+                  <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="text-xs text-blue-600 font-semibold mb-1">
+                        <Reply className="w-3 h-3 inline mr-1" />
+                        Replying to {replyingTo.sender_name}
+                      </p>
+                      <p className="text-sm text-gray-700 line-clamp-2">{replyingTo.message_text}</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setReplyingTo(null)}
+                      className="h-6 w-6 p-0"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
                 <form onSubmit={handleSendMessage} className="flex gap-2">
                   <Textarea
-                    placeholder="Type your message..."
+                    placeholder={replyingTo ? "Type your reply..." : "Type your message..."}
                     value={messageText}
                     onChange={(e) => setMessageText(e.target.value)}
                     onKeyDown={(e) => {
