@@ -28,7 +28,8 @@ import {
   ArrowLeft,
   FileText,
   Calendar,
-  X
+  X,
+  Briefcase
 } from "lucide-react";
 
 const QUALIFICATIONS = [
@@ -56,6 +57,15 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
     hourly_rate: "",
     bio: "",
     years_experience: "",
+    availability: {
+      monday: [],
+      tuesday: [],
+      wednesday: [],
+      thursday: [],
+      friday: [],
+      saturday: [],
+      sunday: []
+    },
     shift_preferences: {
       preferred_shift_times: [],
       willing_to_work_weekends: true,
@@ -197,8 +207,13 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
     }
 
     if (currentStep === 5) {
-      // Initiate background check
-      await initiateBackgroundCheckMutation.mutateAsync();
+      // Automatically initiate Checkr background check
+      try {
+        await initiateBackgroundCheckMutation.mutateAsync();
+      } catch (error) {
+        console.error('Background check initiation failed:', error);
+        alert('Background check could not be initiated automatically. You can complete this later from your profile.');
+      }
     }
 
     if (currentStep < steps.length - 1) {
@@ -545,6 +560,179 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
             </Card>
           )}
 
+          {currentStep === 3 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
+                  Availability & Shift Preferences
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start gap-2">
+                    <div className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-white text-xs font-bold">i</span>
+                    </div>
+                    <div>
+                      <p className="text-sm text-blue-900 font-semibold mb-1">💡 Why availability matters:</p>
+                      <p className="text-sm text-blue-900">
+                        Staff with flexible availability get <strong>3x more shift offers!</strong> Our intelligent matching 
+                        system finds shifts that fit your schedule and location. The more specific you are, the better.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-base font-semibold mb-3 block">Preferred Shift Times *</Label>
+                  <div className="grid md:grid-cols-2 gap-3">
+                    {[
+                      { value: 'day', label: 'Day Shift', time: '7am - 3pm', color: 'yellow' },
+                      { value: 'evening', label: 'Evening Shift', time: '3pm - 11pm', color: 'orange' },
+                      { value: 'night', label: 'Night Shift', time: '11pm - 7am', color: 'blue' },
+                      { value: 'flexible', label: 'Flexible', time: 'Any time', color: 'purple' }
+                    ].map(({ value, label, time, color }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => toggleShiftTime(value)}
+                        className={`p-4 rounded-xl border-2 transition-all text-left ${
+                          formData.shift_preferences.preferred_shift_times.includes(value)
+                            ? `border-${color}-400 bg-${color}-50`
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                            formData.shift_preferences.preferred_shift_times.includes(value)
+                              ? `bg-${color}-100`
+                              : 'bg-gray-100'
+                          }`}>
+                            <Clock className={`w-6 h-6 ${
+                              formData.shift_preferences.preferred_shift_times.includes(value)
+                                ? `text-${color}-600`
+                                : 'text-gray-400'
+                            }`} />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-gray-900">{label}</div>
+                            <div className="text-xs text-gray-600">{time}</div>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="flex items-center justify-between p-4 bg-white rounded-lg border-2 border-gray-200">
+                    <div className="flex items-center gap-3">
+                      <Calendar className="w-5 h-5 text-gray-600" />
+                      <div>
+                        <Label className="font-semibold text-gray-900">Work Weekends</Label>
+                        <p className="text-xs text-gray-600">Saturdays & Sundays</p>
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={formData.shift_preferences.willing_to_work_weekends}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        shift_preferences: { ...formData.shift_preferences, willing_to_work_weekends: e.target.checked }
+                      })}
+                      className="w-5 h-5 text-blue-600"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 bg-white rounded-lg border-2 border-gray-200">
+                    <div className="flex items-center gap-3">
+                      <Calendar className="w-5 h-5 text-gray-600" />
+                      <div>
+                        <Label className="font-semibold text-gray-900">Work Holidays</Label>
+                        <p className="text-xs text-gray-600">Major holidays</p>
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={formData.shift_preferences.willing_to_work_holidays}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        shift_preferences: { ...formData.shift_preferences, willing_to_work_holidays: e.target.checked }
+                      })}
+                      className="w-5 h-5 text-blue-600"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="font-semibold">Maximum Commute Distance</Label>
+                  <div className="mt-2 flex items-center gap-4">
+                    <input
+                      type="range"
+                      min="5"
+                      max="50"
+                      step="5"
+                      value={formData.shift_preferences.max_commute_miles}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        shift_preferences: { ...formData.shift_preferences, max_commute_miles: parseInt(e.target.value) }
+                      })}
+                      className="flex-1"
+                    />
+                    <Badge className="bg-blue-600 text-white px-4 py-2">
+                      {formData.shift_preferences.max_commute_miles} miles
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-gray-600 mt-2">
+                    You'll see shifts within this distance from your location
+                  </p>
+                </div>
+
+                <div className="mt-6 p-4 bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200 rounded-lg">
+                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-purple-600" />
+                    Detailed Weekly Availability (Optional)
+                  </h4>
+                  <p className="text-sm text-gray-700 mb-4">
+                    Set specific days and times you're typically available. This helps us match you with shifts perfectly.
+                  </p>
+
+                  {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
+                    <div key={day} className="mb-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <Label className="text-sm font-semibold capitalize">{day}</Label>
+                        <div className="flex gap-2">
+                          {['morning', 'afternoon', 'evening', 'night'].map((timeSlot) => (
+                            <button
+                              key={timeSlot}
+                              type="button"
+                              onClick={() => toggleDayAvailability(day, timeSlot)}
+                              className={`px-3 py-1 text-xs rounded-full border transition-all ${
+                                formData.availability[day]?.includes(timeSlot)
+                                  ? 'bg-purple-600 text-white border-purple-600'
+                                  : 'bg-white text-gray-600 border-gray-300 hover:border-purple-300'
+                              }`}
+                            >
+                              {timeSlot}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="mt-4 flex items-start gap-2 text-xs text-gray-600">
+                    <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    <p>
+                      <strong>Time ranges:</strong> Morning (6am-12pm), Afternoon (12pm-6pm), Evening (6pm-12am), Night (12am-6am)
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {currentStep === 4 && (
             <Card>
               <CardHeader>
@@ -651,6 +839,20 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm text-green-900 font-semibold mb-1">Automated Background Check:</p>
+                      <p className="text-sm text-green-900">
+                        We use Checkr, a trusted background check provider, to verify your information. 
+                        The process is automatic and typically completes within 24-48 hours. You'll receive 
+                        email notifications about the status. This is required for all healthcare positions.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <p className="text-sm text-blue-900 mb-4">
                     <strong>Required:</strong> We need your address to initiate the automated background check through Checkr.
@@ -713,15 +915,81 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
           )}
 
           {currentStep === 6 && (
-            <Card className="border-2 border-green-200 bg-green-50">
-              <CardContent className="pt-8 text-center">
-                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle className="w-12 h-12 text-green-600" />
+            <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-teal-50">
+              <CardContent className="pt-8">
+                <div className="text-center mb-6">
+                  <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle className="w-12 h-12 text-green-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    You're All Set! 🎉
+                  </h2>
+                  <p className="text-gray-700 mb-6 max-w-md mx-auto">
+                    Your profile is complete and your background check has been initiated. Here's what happens next:
+                  </p>
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  You're All Set! 🎉
-                </h2>
-                <p className="text-gray-700 mb-6 max-w-md mx-auto">
+
+                <div className="bg-white p-6 rounded-lg border border-blue-200 mb-6">
+                  <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Award className="w-5 h-5 text-blue-600" />
+                    Key Platform Features - Quick Guide
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span className="text-blue-600 font-bold text-sm">1</span>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900 text-sm">Browse & Apply for Shifts</p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Visit the "Global Marketplace" to see all available shifts near you. Use filters to find 
+                          shifts that match your preferences. Apply with one click!
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span className="text-purple-600 font-bold text-sm">2</span>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900 text-sm">Real-Time Notifications</p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Get instant alerts when facilities accept your application or when new shifts matching 
+                          your profile are posted. Check the bell icon in the sidebar.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span className="text-teal-600 font-bold text-sm">3</span>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900 text-sm">Direct Messaging</p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Communicate directly with facilities through our "Messages" feature. Ask questions 
+                          about shifts, confirm details, or coordinate arrival times.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span className="text-green-600 font-bold text-sm">4</span>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900 text-sm">Instant Pay & Earnings</p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Track your earnings in real-time. Access funds immediately after completing shifts 
+                          using our "Instant Pay" feature. View full history in "Earnings History".
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-gray-700 mb-6 text-center">
                   Your profile is complete and your background check has been initiated. 
                   You can start browsing available shifts while we verify your credentials.
                 </p>
