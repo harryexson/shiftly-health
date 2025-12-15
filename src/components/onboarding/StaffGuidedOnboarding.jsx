@@ -252,6 +252,23 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
     }));
   };
 
+  const toggleDayAvailability = (day, timeSlot) => {
+    setFormData(prev => {
+      const daySlots = prev.availability[day] || [];
+      const newSlots = daySlots.includes(timeSlot)
+        ? daySlots.filter(t => t !== timeSlot)
+        : [...daySlots, timeSlot];
+      
+      return {
+        ...prev,
+        availability: {
+          ...prev.availability,
+          [day]: newSlots
+        }
+      };
+    });
+  };
+
   const canProceed = () => {
     switch (currentStep) {
       case 0: // Welcome
@@ -537,6 +554,19 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <div className="flex items-start gap-2">
+                    <Shield className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm text-amber-900 font-semibold mb-1">Verification Process:</p>
+                      <p className="text-sm text-amber-900">
+                        All credentials are verified by our compliance team within 24-48 hours. You can browse 
+                        shifts immediately, but you'll need verification approval before applying. Accepted formats: 
+                        PDF, JPG, PNG (max 10MB per file).
+                      </p>
+                    </div>
+                  </div>
+                </div>
                 <p className="text-sm text-gray-600">
                   Upload your professional license, certifications, and other credentials. These will be verified by our compliance team.
                 </p>
