@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { X, CheckCircle, XCircle, Clock, FileText, Shield, Award, Book, Upload, Sun, Moon, Sunrise, Calendar } from "lucide-react";
 import HelpTooltip from "../components/onboarding/HelpTooltip";
 import BackgroundCheckStatus from "../components/verification/BackgroundCheckStatus";
+import AccountSettings from "../components/profile/AccountSettings";
 
 const QUALIFICATIONS = [
   "CPR", "First Aid", "Mental Health Training", "ISP Training",
@@ -245,20 +246,29 @@ export default function StaffProfile() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-teal-50/30 p-4 md:p-8">
       <div className="max-w-4xl mx-auto space-y-6">
-        <div className="bg-white rounded-2xl shadow-sm border border-blue-100/50 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text text-transparent mb-2">
-                {existingProfile ? 'Edit Your Profile' : 'Create Your Staff Profile'}
-              </h1>
-              <p className="text-gray-600">Complete your profile to start finding shifts</p>
+          <div className="bg-white rounded-2xl shadow-sm border border-blue-100/50 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text text-transparent mb-2">
+                  {existingProfile ? 'Edit Your Profile' : 'Create Your Staff Profile'}
+                </h1>
+                <p className="text-gray-600">Complete your profile to start finding shifts</p>
+              </div>
+              <HelpTooltip
+                title="Profile Completion Tips"
+                content="A complete profile gets 5x more shift offers! Add your photo, qualifications, and preferences to stand out to facilities."
+              />
             </div>
-            <HelpTooltip
-              title="Profile Completion Tips"
-              content="A complete profile gets 5x more shift offers! Add your photo, qualifications, and preferences to stand out to facilities."
-            />
           </div>
-        </div>
+
+          {/* Account Settings */}
+          <AccountSettings user={user} onUpdate={() => {
+            const loadUser = async () => {
+              const currentUser = await base44.auth.me();
+              setUser(currentUser);
+            };
+            loadUser();
+          }} />
 
         {existingProfile && (
           <Card className={`border-2 ${

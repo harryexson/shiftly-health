@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CheckCircle } from "lucide-react";
+import AccountSettings from "../components/profile/AccountSettings";
 
 export default function EmployerProfile() {
   const navigate = useNavigate();
