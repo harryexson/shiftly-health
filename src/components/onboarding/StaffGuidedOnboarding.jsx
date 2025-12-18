@@ -29,7 +29,10 @@ import {
   FileText,
   Calendar,
   X,
-  Briefcase
+  Briefcase,
+  Camera,
+  DollarSign,
+  Info
 } from "lucide-react";
 
 const QUALIFICATIONS = [
@@ -57,6 +60,14 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
     hourly_rate: "",
     bio: "",
     years_experience: "",
+    profile_photo_url: "",
+    banking_info: {
+      account_holder_name: "",
+      bank_name: "",
+      account_type: "checking",
+      routing_number: "",
+      account_number: ""
+    },
     availability: {
       monday: [],
       tuesday: [],
@@ -76,6 +87,7 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
   });
   const [uploadedDocs, setUploadedDocs] = useState([]);
   const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const steps = [
     {
@@ -88,7 +100,7 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
       id: 'profile',
       title: 'Personal Information',
       icon: User,
-      description: 'Basic details about you'
+      description: 'Basic details & photo'
     },
     {
       id: 'qualifications',
@@ -113,6 +125,18 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
       title: 'Background Check',
       icon: Shield,
       description: 'Initiate verification'
+    },
+    {
+      id: 'payment',
+      title: 'Payment Setup',
+      icon: DollarSign,
+      description: 'Banking information'
+    },
+    {
+      id: 'how_to_apply',
+      title: 'How to Apply',
+      icon: Briefcase,
+      description: 'Application process guide'
     },
     {
       id: 'complete',
@@ -179,6 +203,20 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
     }
   });
 
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploadingPhoto(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      setFormData({ ...formData, profile_photo_url: file_url });
+    } finally {
+      setUploadingPhoto(false);
+      e.target.value = null;
+    }
+  };
+
   const handleDocumentUpload = async (e, docType, docName) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -198,7 +236,7 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
   };
 
   const handleNext = async () => {
-    if (currentStep === 1 || currentStep === 2 || currentStep === 3) {
+    if (currentStep === 1 || currentStep === 2 || currentStep === 3 || currentStep === 6) {
       // Save profile data
       await saveProfileMutation.mutateAsync({
         ...formData,
@@ -228,7 +266,7 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
         completed_steps: steps.map(s => s.id),
         checklist_items: {
           profile_created: true,
-          profile_photo_uploaded: false,
+          profile_photo_uploaded: !!formData.profile_photo_url,
           qualifications_added: formData.qualifications.length > 0,
           availability_set: true
         },
@@ -298,6 +336,10 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
         return uploadedDocs.length > 0;
       case 5: // Background
         return formData.address && formData.city && formData.state && formData.zip_code;
+      case 6: // Payment (optional)
+        return true;
+      case 7: // How to Apply
+        return true;
       default:
         return true;
     }
@@ -463,6 +505,61 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
                     placeholder="Tell employers about your experience..."
                     rows={3}
                     className="mt-1"
+                  />
+                </div>
+
+                {/* Profile Photo Upload */}
+                <div className="mt-6 p-6 bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-dashed border-blue-300 rounded-lg">
+                  <Label className="text-base font-semibold mb-3 block">Profile Photo (Recommended)</Label>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Staff with profile photos get 2x more shift offers! Add a professional photo to stand out.
+                  </p>
+                  
+                  {formData.profile_photo_url ? (
+                    <div className="flex items-center gap-4">
+                      <img 
+                        src={formData.profile_photo_url} 
+                        alt="Profile" 
+                        className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
+                      />
+                      <div>
+                        <p className="text-sm text-green-700 font-semibold mb-2">✓ Photo uploaded!</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => document.getElementById('photo-upload').click()}
+                          disabled={uploadingPhoto}
+                        >
+                          <Camera className="w-4 h-4 mr-2" />
+                          Change Photo
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center">
+                        <Camera className="w-12 h-12 text-gray-400" />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => document.getElementById('photo-upload').click()}
+                        disabled={uploadingPhoto}
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        {uploadingPhoto ? "Uploading..." : "Upload Photo"}
+                      </Button>
+                    </div>
+                  )}
+                  
+                  <input
+                    id="photo-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handlePhotoUpload}
+                    disabled={uploadingPhoto}
                   />
                 </div>
               </CardContent>
@@ -915,6 +1012,229 @@ export default function StaffGuidedOnboarding({ user, open, onClose }) {
           )}
 
           {currentStep === 6 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="w-5 h-5" />
+                  Payment & Banking Setup
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start gap-2">
+                    <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm text-blue-900 font-semibold mb-1">Get Paid Instantly!</p>
+                      <p className="text-sm text-blue-900">
+                        Add your banking details now to enable instant pay after completing shifts. You can also set this up later in your profile.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Account Holder Name</Label>
+                  <Input
+                    value={formData.banking_info.account_holder_name}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      banking_info: { ...formData.banking_info, account_holder_name: e.target.value }
+                    })}
+                    placeholder="John Doe"
+                    className="mt-1"
+                  />
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Bank Name</Label>
+                    <Input
+                      value={formData.banking_info.bank_name}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        banking_info: { ...formData.banking_info, bank_name: e.target.value }
+                      })}
+                      placeholder="Bank of America"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label>Account Type</Label>
+                    <Select
+                      value={formData.banking_info.account_type}
+                      onValueChange={(value) => setFormData({
+                        ...formData,
+                        banking_info: { ...formData.banking_info, account_type: value }
+                      })}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="checking">Checking</SelectItem>
+                        <SelectItem value="savings">Savings</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Routing Number</Label>
+                    <Input
+                      value={formData.banking_info.routing_number}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        banking_info: { ...formData.banking_info, routing_number: e.target.value }
+                      })}
+                      placeholder="123456789"
+                      maxLength={9}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label>Account Number</Label>
+                    <Input
+                      type="password"
+                      value={formData.banking_info.account_number}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        banking_info: { ...formData.banking_info, account_number: e.target.value }
+                      })}
+                      placeholder="••••••••••"
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
+                  <p className="text-sm text-green-900">
+                    <strong>🔒 Secure & Encrypted:</strong> Your banking information is encrypted and stored securely. 
+                    We never share your details with third parties.
+                  </p>
+                </div>
+
+                <div className="text-center text-sm text-gray-600 pt-4">
+                  <p>Don't have this information now? No problem!</p>
+                  <p className="font-semibold">You can add payment details later from your profile settings.</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {currentStep === 7 && (
+            <Card className="border-blue-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Briefcase className="w-5 h-5" />
+                  How to Find & Apply for Shifts
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="bg-gradient-to-br from-blue-50 to-teal-50 border border-blue-200 rounded-lg p-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">The Application Process</h3>
+                  
+                  <div className="space-y-4">
+                    <div className="flex gap-4">
+                      <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center flex-shrink-0 font-bold">
+                        1
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-1">Browse Available Shifts</h4>
+                        <p className="text-sm text-gray-700">
+                          Visit the <strong>Global Marketplace</strong> to see all available shifts near you. Use filters to find 
+                          shifts that match your qualifications, schedule, and location preferences.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4">
+                      <div className="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center flex-shrink-0 font-bold">
+                        2
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-1">Review Shift Details</h4>
+                        <p className="text-sm text-gray-700">
+                          Click on any shift to see full details: facility name, required qualifications, hourly rate, 
+                          shift time, location, and special requirements.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4">
+                      <div className="w-10 h-10 bg-purple-600 text-white rounded-full flex items-center justify-center flex-shrink-0 font-bold">
+                        3
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-1">Apply with One Click</h4>
+                        <p className="text-sm text-gray-700">
+                          Click <strong>"Apply Now"</strong> button. Your profile, qualifications, and credentials are 
+                          automatically sent to the facility. No need to fill out forms every time!
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4">
+                      <div className="w-10 h-10 bg-green-600 text-white rounded-full flex items-center justify-center flex-shrink-0 font-bold">
+                        4
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-1">Get Notified Instantly</h4>
+                        <p className="text-sm text-gray-700">
+                          You'll receive instant notifications when facilities review your application. Most responses 
+                          come within 15-30 minutes!
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4">
+                      <div className="w-10 h-10 bg-amber-600 text-white rounded-full flex items-center justify-center flex-shrink-0 font-bold">
+                        5
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-1">Confirm & Show Up</h4>
+                        <p className="text-sm text-gray-700">
+                          Once accepted, you'll get all shift details via email and in-app. Show up on time, complete 
+                          your shift, and get paid!
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white border-2 border-green-200 rounded-lg p-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <CheckCircle className="w-6 h-6 text-green-600" />
+                    Tips for Success
+                  </h3>
+                  <ul className="space-y-3 text-sm text-gray-700">
+                    <li className="flex items-start gap-2">
+                      <span className="text-teal-600 font-bold">✓</span>
+                      <span><strong>Complete your profile:</strong> Profiles with photos and detailed experience get 2-3x more shift offers.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-teal-600 font-bold">✓</span>
+                      <span><strong>Apply quickly:</strong> Shifts fill fast! Apply within the first hour of posting for the best chance.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-teal-600 font-bold">✓</span>
+                      <span><strong>Enable notifications:</strong> Get instant alerts when shifts matching your profile are posted nearby.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-teal-600 font-bold">✓</span>
+                      <span><strong>Build your reputation:</strong> Great ratings lead to more opportunities and higher-paying shifts.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-teal-600 font-bold">✓</span>
+                      <span><strong>Be flexible:</strong> Staff willing to work weekends, evenings, and last-minute shifts earn 40% more.</span>
+                    </li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {currentStep === 8 && (
             <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-teal-50">
               <CardContent className="pt-8">
                 <div className="text-center mb-6">
