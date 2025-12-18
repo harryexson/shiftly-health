@@ -56,7 +56,7 @@ export default function EmployerProfile() {
   const saveMutation = useMutation({
     mutationFn: async (profileData) => {
       const trialEndDate = new Date();
-      trialEndDate.setDate(trialEndDate.getDate() + 14); // 14-day trial
+      trialEndDate.setDate(trialEndDate.getDate() + 14);
       
       const dataWithTrial = {
         ...profileData,
@@ -113,6 +113,16 @@ export default function EmployerProfile() {
           </h1>
           <p className="text-gray-600">Set up your facility to start posting shifts</p>
         </div>
+
+        {user && (
+          <AccountSettings user={user} onUpdate={() => {
+            const loadUser = async () => {
+              const currentUser = await base44.auth.me();
+              setUser(currentUser);
+            };
+            loadUser();
+          }} />
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <Card className="border-blue-100/50">
