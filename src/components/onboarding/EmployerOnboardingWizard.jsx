@@ -78,6 +78,8 @@ const QUALIFICATIONS = [
 
 export default function EmployerOnboardingWizard({ user, onComplete, onSkip }) {
   const [currentStep, setCurrentStep] = useState(0);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [facilityData, setFacilityData] = useState({
     facility_name: "",
     facility_type: "",
@@ -180,6 +182,25 @@ export default function EmployerOnboardingWizard({ user, onComplete, onSkip }) {
       });
     },
   });
+
+  const handleStripeCheckout = async (plan) => {
+    setIsProcessingPayment(true);
+    try {
+      const response = await base44.functions.invoke('createCheckout', {
+        plan,
+        successUrl: `${window.location.origin}/EmployerDashboard?payment=success&onboarding=complete`,
+        cancelUrl: `${window.location.origin}/Welcome?payment=cancelled`
+      });
+
+      if (response.data.url) {
+        window.location.href = response.data.url;
+      }
+    } catch (error) {
+      console.error('Stripe checkout error:', error);
+      alert('Failed to initialize payment. Please try again.');
+      setIsProcessingPayment(false);
+    }
+  };
 
   const handleNext = async () => {
     // Validate and save at specific steps
@@ -867,13 +888,165 @@ export default function EmployerOnboardingWizard({ user, onComplete, onSkip }) {
               <div className="flex items-start gap-3">
                 <CreditCard className="w-5 h-5 text-green-600 mt-0.5" />
                 <div>
-                  <h4 className="font-semibold text-green-900 mb-1">Simple, Transparent Pricing</h4>
+                  <h4 className="font-semibold text-green-900 mb-1">Choose Your Plan</h4>
                   <p className="text-sm text-green-800">
-                    Only 10% platform fee per shift. No hidden charges, no monthly fees during trial.
-                    You only pay when you successfully fill shifts.
+                    Select a subscription plan or skip to continue with the free trial. 
+                    You can always upgrade later from your dashboard.
                   </p>
                 </div>
               </div>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-4">
+              {/* Basic Plan */}
+              <Card className={`border-2 cursor-pointer transition-all ${
+                selectedPlan === 'basic' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'
+              }`} onClick={() => setSelectedPlan('basic')}>
+                <CardContent className="pt-6">
+                  <div className="text-center mb-4">
+                    <h4 className="font-bold text-xl text-gray-900">Basic</h4>
+                    <div className="mt-2">
+                      <span className="text-4xl font-bold text-blue-600">$99</span>
+                      <span className="text-gray-600">/month</span>
+                    </div>
+                  </div>
+                  <ul className="space-y-2 text-sm text-gray-600">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      <span>Up to 10 shifts/month</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      <span>Basic matching</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      <span>Email support</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      <span>Basic analytics</span>
+                    </li>
+                  </ul>
+                  <Button 
+                    className="w-full mt-4" 
+                    variant={selectedPlan === 'basic' ? 'default' : 'outline'}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStripeCheckout('basic');
+                    }}
+                    disabled={isProcessingPayment}
+                  >
+                    {isProcessingPayment && selectedPlan === 'basic' ? 'Processing...' : 'Select Basic'}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Premium Plan */}
+              <Card className={`border-2 cursor-pointer transition-all relative ${
+                selectedPlan === 'premium' ? 'border-teal-500 bg-teal-50' : 'border-teal-200 hover:border-teal-400'
+              }`} onClick={() => setSelectedPlan('premium')}>
+                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                  <Badge className="bg-teal-600">Most Popular</Badge>
+                </div>
+                <CardContent className="pt-6">
+                  <div className="text-center mb-4">
+                    <h4 className="font-bold text-xl text-gray-900">Premium</h4>
+                    <div className="mt-2">
+                      <span className="text-4xl font-bold text-teal-600">$199</span>
+                      <span className="text-gray-600">/month</span>
+                    </div>
+                  </div>
+                  <ul className="space-y-2 text-sm text-gray-600">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      <span><strong>Unlimited shifts</strong></span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      <span>Priority matching</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      <span>24/7 phone support</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      <span>Advanced analytics</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      <span>Staff favorites</span>
+                    </li>
+                  </ul>
+                  <Button 
+                    className="w-full mt-4 bg-teal-600 hover:bg-teal-700" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStripeCheckout('premium');
+                    }}
+                    disabled={isProcessingPayment}
+                  >
+                    {isProcessingPayment && selectedPlan === 'premium' ? 'Processing...' : 'Select Premium'}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Enterprise Plan */}
+              <Card className={`border-2 cursor-pointer transition-all ${
+                selectedPlan === 'enterprise' ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-purple-300'
+              }`} onClick={() => setSelectedPlan('enterprise')}>
+                <CardContent className="pt-6">
+                  <div className="text-center mb-4">
+                    <h4 className="font-bold text-xl text-gray-900">Enterprise</h4>
+                    <div className="mt-2">
+                      <span className="text-4xl font-bold text-purple-600">$499</span>
+                      <span className="text-gray-600">/month</span>
+                    </div>
+                  </div>
+                  <ul className="space-y-2 text-sm text-gray-600">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      <span><strong>Everything in Premium</strong></span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      <span>Dedicated account manager</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      <span>Custom integrations</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      <span>Multi-location support</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      <span>Custom reporting</span>
+                    </li>
+                  </ul>
+                  <Button 
+                    className="w-full mt-4" 
+                    variant={selectedPlan === 'enterprise' ? 'default' : 'outline'}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStripeCheckout('enterprise');
+                    }}
+                    disabled={isProcessingPayment}
+                  >
+                    {isProcessingPayment && selectedPlan === 'enterprise' ? 'Processing...' : 'Select Enterprise'}
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <h4 className="font-semibold text-amber-900 mb-2">💳 Secure Payment via Stripe</h4>
+              <p className="text-sm text-amber-800">
+                Your payment information is securely processed by Stripe. We never store your credit card details.
+                You can cancel anytime with no long-term commitment.
+              </p>
             </div>
 
             <div className="space-y-4">
@@ -962,11 +1135,11 @@ export default function EmployerOnboardingWizard({ user, onComplete, onSkip }) {
               </CardContent>
             </Card>
 
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <h4 className="font-semibold text-amber-900 mb-2">📝 After Trial</h4>
-              <p className="text-sm text-amber-800">
-                After your 14-day trial, you can add a payment method in the Billing section. 
-                No credit card required to get started!
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-semibold text-blue-900 mb-2">💡 Or Continue with Free Trial</h4>
+              <p className="text-sm text-blue-800">
+                Not ready to subscribe? Click "Next" to continue with your 14-day free trial. 
+                You can upgrade anytime from your dashboard.
               </p>
             </div>
           </div>
