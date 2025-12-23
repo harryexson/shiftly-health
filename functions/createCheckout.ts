@@ -81,8 +81,8 @@ Deno.serve(async (req) => {
           quantity: 1,
         },
       ],
-      success_url: successUrl || `${req.headers.get('origin')}/EmployerDashboard?payment=success`,
-      cancel_url: cancelUrl || `${req.headers.get('origin')}/Billing?payment=cancelled`,
+      success_url: successUrl || `https://shiftlyhealth.com/EmployerDashboard?payment=success`,
+      cancel_url: cancelUrl || `https://shiftlyhealth.com/Billing?payment=cancelled`,
       metadata: {
         user_email: user.email,
         plan: plan
