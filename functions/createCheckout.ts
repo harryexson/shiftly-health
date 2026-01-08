@@ -3,6 +3,30 @@ import Stripe from 'npm:stripe@17.4.0';
 
 const stripe = new Stripe(Deno.env.get("STRIPE_API_KEY"));
 
+// Regional pricing in local currency
+const regionalPricing = {
+  USD: {
+    basic: 9900,    // $99/month
+    premium: 19900, // $199/month
+    enterprise: 49900 // $499/month
+  },
+  CAD: {
+    basic: 13500,   // $135 CAD/month
+    premium: 26900, // $269 CAD/month
+    enterprise: 67500 // $675 CAD/month
+  },
+  EUR: {
+    basic: 9200,    // €92/month
+    premium: 18400, // €184/month
+    enterprise: 46000 // €460/month
+  },
+  GBP: {
+    basic: 7900,    // £79/month
+    premium: 15800, // £158/month
+    enterprise: 39500 // £395/month
+  }
+};
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -12,31 +36,20 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { plan, successUrl, cancelUrl } = await req.json();
+    const { plan, currency = 'USD', successUrl, cancelUrl } = await req.json();
 
-    // Define subscription plans
-    const plans = {
-      basic: {
-        name: 'Basic Plan',
-        price: 9900, // $99/month in cents
-        interval: 'month'
-      },
-      premium: {
-        name: 'Premium Plan',
-        price: 19900, // $199/month in cents
-        interval: 'month'
-      },
-      enterprise: {
-        name: 'Enterprise Plan',
-        price: 49900, // $499/month in cents
-        interval: 'month'
-      }
-    };
+    // Validate currency
+    if (!['USD', 'CAD', 'EUR', 'GBP'].includes(currency)) {
+      return Response.json({ error: 'Invalid currency' }, { status: 400 });
+    }
 
-    const selectedPlan = plans[plan];
-    if (!selectedPlan) {
+    // Get pricing for selected currency
+    const pricing = regionalPricing[currency];
+    if (!pricing || !pricing[plan]) {
       return Response.json({ error: 'Invalid plan selected' }, { status: 400 });
     }
+
+    const selectedPrice = pricing[plan];
 
     // Check if customer already exists
     const customers = await stripe.customers.list({
@@ -68,14 +81,14 @@ Deno.serve(async (req) => {
       line_items: [
         {
           price_data: {
-            currency: 'usd',
+            currency: currency.toLowerCase(),
             product_data: {
-              name: `Shiftly Health - ${selectedPlan.name}`,
-              description: `Healthcare staffing platform ${selectedPlan.name.toLowerCase()}`,
+              name: `Shiftly Health - ${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan`,
+              description: `Healthcare staffing platform ${plan} subscription`,
             },
-            unit_amount: selectedPlan.price,
+            unit_amount: selectedPrice,
             recurring: {
-              interval: selectedPlan.interval
+              interval: 'month'
             }
           },
           quantity: 1,
@@ -85,7 +98,8 @@ Deno.serve(async (req) => {
       cancel_url: cancelUrl || `https://shiftlyhealth.com/Billing?payment=cancelled`,
       metadata: {
         user_email: user.email,
-        plan: plan
+        plan: plan,
+        currency: currency
       }
     });
 

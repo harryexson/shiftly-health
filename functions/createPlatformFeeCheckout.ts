@@ -12,10 +12,15 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { shiftId, feeAmount, description, successUrl, cancelUrl } = await req.json();
+    const { shiftId, feeAmount, currency = 'USD', description, successUrl, cancelUrl } = await req.json();
 
     if (!feeAmount || feeAmount <= 0) {
       return Response.json({ error: 'Invalid fee amount' }, { status: 400 });
+    }
+
+    // Validate currency
+    if (!['USD', 'CAD', 'EUR', 'GBP'].includes(currency)) {
+      return Response.json({ error: 'Invalid currency' }, { status: 400 });
     }
 
     // Check if customer already exists
@@ -47,7 +52,7 @@ Deno.serve(async (req) => {
       line_items: [
         {
           price_data: {
-            currency: 'usd',
+            currency: currency.toLowerCase(),
             product_data: {
               name: 'Shiftly Health Platform Fee',
               description: description || `Platform service fee for shift ${shiftId}`,
@@ -62,7 +67,8 @@ Deno.serve(async (req) => {
       metadata: {
         user_email: user.email,
         shift_id: shiftId,
-        fee_type: 'platform_fee'
+        fee_type: 'platform_fee',
+        currency: currency
       }
     });
 
