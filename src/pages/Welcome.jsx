@@ -26,23 +26,60 @@ export default function Welcome() {
         const currentUser = await base44.auth.me();
         setUser(currentUser);
         
-        // Check if user has a profile already
+        // Admin users go straight to admin dashboard
+        if (currentUser.role === 'admin') {
+          navigate(createPageUrl("AdminDashboard"));
+          return;
+        }
+        
+        // Check if user has profiles
         const staffProfiles = await base44.entities.StaffProfile.filter({ user_email: currentUser.email });
         const employerProfiles = await base44.entities.EmployerProfile.filter({ user_email: currentUser.email });
         
+        // Staff users - route to dashboard if profile exists
         if (staffProfiles.length > 0) {
           navigate(createPageUrl("StaffDashboard"));
-        } else if (employerProfiles.length > 0) {
-          navigate(createPageUrl("EmployerDashboard"));
-        } else if (currentUser.role === 'admin') {
-          navigate(createPageUrl("AdminDashboard"));
+          return;
         }
+        
+        // Employer users - check subscription status
+        if (employerProfiles.length > 0) {
+          const profile = employerProfiles[0];
+          const today = new Date();
+          const trialEnd = profile.trial_end_date ? new Date(profile.trial_end_date) : null;
+          
+          // Active subscription - go to dashboard
+          if (profile.subscription_status === 'active') {
+            navigate(createPageUrl("EmployerDashboard"));
+            return;
+          }
+          
+          // Trial period active - go to dashboard
+          if (profile.subscription_status === 'trial' && trialEnd && today <= trialEnd) {
+            navigate(createPageUrl("EmployerDashboard"));
+            return;
+          }
+          
+          // Trial expired or suspended - redirect to billing
+          if ((profile.subscription_status === 'trial' && trialEnd && today > trialEnd) || 
+              profile.subscription_status === 'suspended' || 
+              profile.subscription_status === 'cancelled') {
+            navigate(createPageUrl("Billing"));
+            return;
+          }
+          
+          // Default - go to dashboard (shouldn't reach here normally)
+          navigate(createPageUrl("EmployerDashboard"));
+          return;
+        }
+        
+        // No profile exists - stay on Welcome page for onboarding
       } catch (error) {
         console.error("Failed to load user:", error);
       }
     };
     loadUser();
-  }, [navigate]); // Added navigate to dependency array
+  }, [navigate]);
 
   const handleRoleSelection = async (role) => {
     setSelectedUserType(role);

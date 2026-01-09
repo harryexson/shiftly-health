@@ -1,89 +1,89 @@
-import StaffDashboard from './pages/StaffDashboard';
-import BrowseShifts from './pages/BrowseShifts';
-import EmployerDashboard from './pages/EmployerDashboard';
-import PostShift from './pages/PostShift';
-import AdminDashboard from './pages/AdminDashboard';
-import Welcome from './pages/Welcome';
-import StaffProfile from './pages/StaffProfile';
-import EmployerProfile from './pages/EmployerProfile';
-import MyApplications from './pages/MyApplications';
-import ManageShifts from './pages/ManageShifts';
-import Notifications from './pages/Notifications';
-import UserManagement from './pages/UserManagement';
-import BillingOversight from './pages/BillingOversight';
-import Compliance from './pages/Compliance';
 import AccountManagement from './pages/AccountManagement';
-import PaymentManagement from './pages/PaymentManagement';
-import Violations from './pages/Violations';
-import RegionSelect from './pages/RegionSelect';
-import GlobalMarketplace from './pages/GlobalMarketplace';
-import FacilityAdmin from './pages/FacilityAdmin';
-import InstantPay from './pages/InstantPay';
-import PaymentProcessorInfo from './pages/PaymentProcessorInfo';
-import BillingCenter from './pages/BillingCenter';
-import EarningsHistory from './pages/EarningsHistory';
-import PayrollManagement from './pages/PayrollManagement';
-import TestCredentials from './pages/TestCredentials';
-import SystemSettings from './pages/SystemSettings';
-import UserApprovals from './pages/UserApprovals';
-import MarketAnalysis from './pages/MarketAnalysis';
-import ManageStaffPreferences from './pages/ManageStaffPreferences';
-import NotificationSettings from './pages/NotificationSettings';
+import AdminDashboard from './pages/AdminDashboard';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
+import Billing from './pages/Billing';
+import BillingCenter from './pages/BillingCenter';
+import BillingOversight from './pages/BillingOversight';
+import BrowseShifts from './pages/BrowseShifts';
+import Compliance from './pages/Compliance';
 import CredentialVerification from './pages/CredentialVerification';
+import EarningsHistory from './pages/EarningsHistory';
+import EmployerDashboard from './pages/EmployerDashboard';
+import EmployerProfile from './pages/EmployerProfile';
+import FacilityAdmin from './pages/FacilityAdmin';
+import FacilityDashboard from './pages/FacilityDashboard';
+import GlobalMarketplace from './pages/GlobalMarketplace';
+import Home from './pages/Home';
+import InstantPay from './pages/InstantPay';
+import ManageShifts from './pages/ManageShifts';
+import ManageStaffPreferences from './pages/ManageStaffPreferences';
+import MarketAnalysis from './pages/MarketAnalysis';
 import Messages from './pages/Messages';
+import MyApplications from './pages/MyApplications';
+import NotificationSettings from './pages/NotificationSettings';
+import Notifications from './pages/Notifications';
+import PaymentManagement from './pages/PaymentManagement';
+import PaymentProcessorInfo from './pages/PaymentProcessorInfo';
+import PayrollManagement from './pages/PayrollManagement';
+import PostShift from './pages/PostShift';
+import RegionSelect from './pages/RegionSelect';
+import ReportsCenter from './pages/ReportsCenter';
 import ShiftCalendar from './pages/ShiftCalendar';
 import ShiftTemplates from './pages/ShiftTemplates';
 import StaffAvailability from './pages/StaffAvailability';
-import Home from './pages/Home';
-import Billing from './pages/Billing';
-import FacilityDashboard from './pages/FacilityDashboard';
-import ReportsCenter from './pages/ReportsCenter';
+import StaffDashboard from './pages/StaffDashboard';
+import StaffProfile from './pages/StaffProfile';
+import SystemSettings from './pages/SystemSettings';
+import TestCredentials from './pages/TestCredentials';
+import UserApprovals from './pages/UserApprovals';
+import UserManagement from './pages/UserManagement';
+import Violations from './pages/Violations';
+import Welcome from './pages/Welcome';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
-    "StaffDashboard": StaffDashboard,
-    "BrowseShifts": BrowseShifts,
-    "EmployerDashboard": EmployerDashboard,
-    "PostShift": PostShift,
-    "AdminDashboard": AdminDashboard,
-    "Welcome": Welcome,
-    "StaffProfile": StaffProfile,
-    "EmployerProfile": EmployerProfile,
-    "MyApplications": MyApplications,
-    "ManageShifts": ManageShifts,
-    "Notifications": Notifications,
-    "UserManagement": UserManagement,
-    "BillingOversight": BillingOversight,
-    "Compliance": Compliance,
     "AccountManagement": AccountManagement,
-    "PaymentManagement": PaymentManagement,
-    "Violations": Violations,
-    "RegionSelect": RegionSelect,
-    "GlobalMarketplace": GlobalMarketplace,
-    "FacilityAdmin": FacilityAdmin,
-    "InstantPay": InstantPay,
-    "PaymentProcessorInfo": PaymentProcessorInfo,
-    "BillingCenter": BillingCenter,
-    "EarningsHistory": EarningsHistory,
-    "PayrollManagement": PayrollManagement,
-    "TestCredentials": TestCredentials,
-    "SystemSettings": SystemSettings,
-    "UserApprovals": UserApprovals,
-    "MarketAnalysis": MarketAnalysis,
-    "ManageStaffPreferences": ManageStaffPreferences,
-    "NotificationSettings": NotificationSettings,
+    "AdminDashboard": AdminDashboard,
     "AnalyticsDashboard": AnalyticsDashboard,
+    "Billing": Billing,
+    "BillingCenter": BillingCenter,
+    "BillingOversight": BillingOversight,
+    "BrowseShifts": BrowseShifts,
+    "Compliance": Compliance,
     "CredentialVerification": CredentialVerification,
+    "EarningsHistory": EarningsHistory,
+    "EmployerDashboard": EmployerDashboard,
+    "EmployerProfile": EmployerProfile,
+    "FacilityAdmin": FacilityAdmin,
+    "FacilityDashboard": FacilityDashboard,
+    "GlobalMarketplace": GlobalMarketplace,
+    "Home": Home,
+    "InstantPay": InstantPay,
+    "ManageShifts": ManageShifts,
+    "ManageStaffPreferences": ManageStaffPreferences,
+    "MarketAnalysis": MarketAnalysis,
     "Messages": Messages,
+    "MyApplications": MyApplications,
+    "NotificationSettings": NotificationSettings,
+    "Notifications": Notifications,
+    "PaymentManagement": PaymentManagement,
+    "PaymentProcessorInfo": PaymentProcessorInfo,
+    "PayrollManagement": PayrollManagement,
+    "PostShift": PostShift,
+    "RegionSelect": RegionSelect,
+    "ReportsCenter": ReportsCenter,
     "ShiftCalendar": ShiftCalendar,
     "ShiftTemplates": ShiftTemplates,
     "StaffAvailability": StaffAvailability,
-    "Home": Home,
-    "Billing": Billing,
-    "FacilityDashboard": FacilityDashboard,
-    "ReportsCenter": ReportsCenter,
+    "StaffDashboard": StaffDashboard,
+    "StaffProfile": StaffProfile,
+    "SystemSettings": SystemSettings,
+    "TestCredentials": TestCredentials,
+    "UserApprovals": UserApprovals,
+    "UserManagement": UserManagement,
+    "Violations": Violations,
+    "Welcome": Welcome,
 }
 
 export const pagesConfig = {
