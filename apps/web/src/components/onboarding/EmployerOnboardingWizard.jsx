@@ -386,7 +386,7 @@ export default function EmployerOnboardingWizard({ user, onComplete, onSkip }) {
                     <div>
                       <h4 className="font-bold text-gray-900 text-lg mb-1">Save 40% vs. Traditional Agencies</h4>
                       <p className="text-gray-700">
-                        Only <strong>5% platform fee</strong> compared to 40-60% agency markups. 
+                        Only <strong>10% platform fee</strong> compared to 40-60% agency markups. 
                         Direct payments via Stripe Connect mean more savings.
                       </p>
                       <Badge className="mt-2 bg-green-600">Transparent Pricing</Badge>

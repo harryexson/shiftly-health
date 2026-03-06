@@ -12,9 +12,9 @@ const countries = [
   { code: 'IT', name: 'Italy', currency: 'EUR' },
   { code: 'NL', name: 'Netherlands', currency: 'EUR' },
   { code: 'BE', name: 'Belgium', currency: 'EUR' },
-  { code: 'SE', name: 'Sweden', currency: 'EUR' },
-  { code: 'NO', name: 'Norway', currency: 'EUR' },
-  { code: 'DK', name: 'Denmark', currency: 'EUR' },
+  { code: 'SE', name: 'Sweden', currency: 'SEK' },
+  { code: 'NO', name: 'Norway', currency: 'NOK' },
+  { code: 'DK', name: 'Denmark', currency: 'DKK' },
   { code: 'FI', name: 'Finland', currency: 'EUR' },
   { code: 'IE', name: 'Ireland', currency: 'EUR' }
 ];

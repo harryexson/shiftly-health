@@ -157,7 +157,7 @@ export default function OnboardingChecklist({ progress, userType }) {
               🎊 Congratulations! You've completed all onboarding steps.
             </p>
             <p className="text-sm text-green-700 mt-1">
-              You're ready to make the most of HealthStaff Connect!
+              You're ready to make the most of Shiftly Health!
             </p>
           </div>
         )}
