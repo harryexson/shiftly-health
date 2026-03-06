@@ -1,0 +1,11 @@
+{
+  "name": "@shiftly-health/supabase",
+  "version": "1.0.0",
+  "main": "./src/index.js",
+  "scripts": {
+    "lint": "echo 'No linting configured'"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1"
+  }
+}
