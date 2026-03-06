@@ -1,0 +1,1366 @@
+import React, { useState } from "react";
+import { base44 } from "@/api/base44Client";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  User,
+  Shield,
+  Upload,
+  CheckCircle,
+  Award,
+  Clock,
+  ArrowRight,
+  ArrowLeft,
+  FileText,
+  Calendar,
+  X,
+  Briefcase,
+  Camera,
+  DollarSign,
+  Info
+} from "lucide-react";
+
+const QUALIFICATIONS = [
+  "CPR", "First Aid", "Mental Health Training", "ISP Training",
+  "Behavior Support", "Therap", "Drivers License", "Feeding Assistance",
+  "Bathing", "Grooming", "Medical Transport"
+];
+
+export default function StaffGuidedOnboarding({ user, open, onClose }) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [currentStep, setCurrentStep] = useState(0);
+  const [formData, setFormData] = useState({
+    full_name: user?.full_name || "",
+    phone: "",
+    staff_type: "licensed",
+    address: "",
+    city: "",
+    state: "",
+    zip_code: "",
+    license_number: "",
+    license_state: "",
+    license_expiry: "",
+    qualifications: [],
+    hourly_rate: "",
+    bio: "",
+    years_experience: "",
+    profile_photo_url: "",
+    banking_info: {
+      account_holder_name: "",
+      bank_name: "",
+      account_type: "checking",
+      routing_number: "",
+      account_number: ""
+    },
+    availability: {
+      monday: [],
+      tuesday: [],
+      wednesday: [],
+      thursday: [],
+      friday: [],
+      saturday: [],
+      sunday: []
+    },
+    shift_preferences: {
+      preferred_shift_times: [],
+      willing_to_work_weekends: true,
+      willing_to_work_holidays: true,
+      max_commute_miles: 25,
+      prefers_urgent_shifts: false
+    }
+  });
+  const [uploadedDocs, setUploadedDocs] = useState([]);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  const steps = [
+    {
+      id: 'welcome',
+      title: 'Welcome',
+      icon: CheckCircle,
+      description: 'Platform overview'
+    },
+    {
+      id: 'profile',
+      title: 'Personal Information',
+      icon: User,
+      description: 'Basic details & photo'
+    },
+    {
+      id: 'qualifications',
+      title: 'Qualifications & Experience',
+      icon: Award,
+      description: 'Your certifications and skills'
+    },
+    {
+      id: 'availability',
+      title: 'Availability & Preferences',
+      icon: Calendar,
+      description: 'Set your schedule'
+    },
+    {
+      id: 'credentials',
+      title: 'Upload Credentials',
+      icon: Upload,
+      description: 'License and certifications'
+    },
+    {
+      id: 'background',
+      title: 'Background Check',
+      icon: Shield,
+      description: 'Initiate verification'
+    },
+    {
+      id: 'payment',
+      title: 'Payment Setup',
+      icon: DollarSign,
+      description: 'Banking information'
+    },
+    {
+      id: 'how_to_apply',
+      title: 'How to Apply',
+      icon: Briefcase,
+      description: 'Application process guide'
+    },
+    {
+      id: 'complete',
+      title: 'All Set!',
+      icon: CheckCircle,
+      description: 'Start finding shifts'
+    }
+  ];
+
+  const progress = ((currentStep + 1) / steps.length) * 100;
+
+  const saveProfileMutation = useMutation({
+    mutationFn: async (profileData) => {
+      const existing = await base44.entities.StaffProfile.filter({ 
+        user_email: user.email 
+      });
+      
+      if (existing.length > 0) {
+        return await base44.entities.StaffProfile.update(existing[0].id, profileData);
+      } else {
+        return await base44.entities.StaffProfile.create(profileData);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff-profile'] });
+    }
+  });
+
+  const initiateBackgroundCheckMutation = useMutation({
+    mutationFn: async () => {
+      const response = await base44.functions.invoke('initiateBackgroundCheck', {
+        staff_email: user.email,
+        first_name: formData.full_name.split(' ')[0],
+        last_name: formData.full_name.split(' ').slice(1).join(' '),
+        phone: formData.phone,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        zip_code: formData.zip_code
+      });
+      return response.data;
+    }
+  });
+
+  const uploadDocumentMutation = useMutation({
+    mutationFn: async ({ file, docType, docName, expiryDate }) => {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+
+      await base44.entities.ComplianceRecord.create({
+        user_email: user.email,
+        record_type: docType,
+        document_name: docName,
+        document_url: file_url,
+        verification_status: 'pending',
+        issued_date: new Date().toISOString(),
+        expiry_date: expiryDate || null
+      });
+
+      return { docName, file_url };
+    },
+    onSuccess: (data) => {
+      setUploadedDocs([...uploadedDocs, data.docName]);
+      queryClient.invalidateQueries({ queryKey: ['compliance-records'] });
+    }
+  });
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploadingPhoto(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      setFormData({ ...formData, profile_photo_url: file_url });
+    } finally {
+      setUploadingPhoto(false);
+      e.target.value = null;
+    }
+  };
+
+  const handleDocumentUpload = async (e, docType, docName) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    let expiryDate = null;
+    if (docType === 'license_verification' || docType === 'certification') {
+      expiryDate = prompt('Enter expiry date (YYYY-MM-DD) or leave blank:');
+    }
+
+    setUploadingDoc(true);
+    try {
+      await uploadDocumentMutation.mutateAsync({ file, docType, docName, expiryDate });
+    } finally {
+      setUploadingDoc(false);
+      e.target.value = null;
+    }
+  };
+
+  const handleNext = async () => {
+    if (currentStep === 1 || currentStep === 2 || currentStep === 3 || currentStep === 6) {
+      // Save profile data
+      await saveProfileMutation.mutateAsync({
+        ...formData,
+        user_email: user.email
+      });
+    }
+
+    if (currentStep === 5) {
+      // Automatically initiate Checkr background check
+      try {
+        await initiateBackgroundCheckMutation.mutateAsync();
+      } catch (error) {
+        console.error('Background check initiation failed:', error);
+        alert('Background check could not be initiated automatically. You can complete this later from your profile.');
+      }
+    }
+
+    if (currentStep < steps.length - 1) {
+      setCurrentStep(currentStep + 1);
+    } else {
+      // Complete onboarding
+      await base44.entities.OnboardingProgress.create({
+        user_email: user.email,
+        user_type: 'staff',
+        onboarding_status: 'completed',
+        current_step: steps.length,
+        completed_steps: steps.map(s => s.id),
+        checklist_items: {
+          profile_created: true,
+          profile_photo_uploaded: !!formData.profile_photo_url,
+          qualifications_added: formData.qualifications.length > 0,
+          availability_set: true
+        },
+        completed_date: new Date().toISOString()
+      });
+
+      onClose();
+      navigate(createPageUrl("StaffDashboard"));
+    }
+  };
+
+  const handleBack = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const toggleQualification = (qual) => {
+    setFormData(prev => ({
+      ...prev,
+      qualifications: prev.qualifications.includes(qual)
+        ? prev.qualifications.filter(q => q !== qual)
+        : [...prev.qualifications, qual]
+    }));
+  };
+
+  const toggleShiftTime = (time) => {
+    setFormData(prev => ({
+      ...prev,
+      shift_preferences: {
+        ...prev.shift_preferences,
+        preferred_shift_times: prev.shift_preferences.preferred_shift_times.includes(time)
+          ? prev.shift_preferences.preferred_shift_times.filter(t => t !== time)
+          : [...prev.shift_preferences.preferred_shift_times, time]
+      }
+    }));
+  };
+
+  const toggleDayAvailability = (day, timeSlot) => {
+    setFormData(prev => {
+      const daySlots = prev.availability[day] || [];
+      const newSlots = daySlots.includes(timeSlot)
+        ? daySlots.filter(t => t !== timeSlot)
+        : [...daySlots, timeSlot];
+      
+      return {
+        ...prev,
+        availability: {
+          ...prev.availability,
+          [day]: newSlots
+        }
+      };
+    });
+  };
+
+  const canProceed = () => {
+    switch (currentStep) {
+      case 0: // Welcome
+        return true;
+      case 1: // Profile
+        return formData.full_name && formData.phone && formData.staff_type;
+      case 2: // Qualifications
+        return formData.years_experience;
+      case 3: // Availability
+        return formData.shift_preferences.preferred_shift_times.length > 0;
+      case 4: // Credentials
+        return uploadedDocs.length > 0;
+      case 5: // Background
+        return formData.address && formData.city && formData.state && formData.zip_code;
+      case 6: // Payment (optional)
+        return true;
+      case 7: // How to Apply
+        return true;
+      default:
+        return true;
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-teal-600 bg-clip-text text-transparent">
+            Welcome to Shiftly Health! 🎉
+          </DialogTitle>
+        </DialogHeader>
+
+        {/* Progress Bar */}
+        <div className="mb-6">
+          <div className="flex justify-between mb-2">
+            {steps.map((step, idx) => {
+              const StepIcon = step.icon;
+              return (
+                <div 
+                  key={step.id} 
+                  className={`flex flex-col items-center flex-1 ${
+                    idx <= currentStep ? 'text-blue-600' : 'text-gray-400'
+                  }`}
+                >
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${
+                    idx <= currentStep ? 'bg-blue-100' : 'bg-gray-100'
+                  }`}>
+                    <StepIcon className="w-5 h-5" />
+                  </div>
+                  <p className="text-xs font-medium text-center hidden md:block">{step.title}</p>
+                </div>
+              );
+            })}
+          </div>
+          <Progress value={progress} className="h-2" />
+          <p className="text-sm text-gray-600 mt-2 text-center">
+            Step {currentStep + 1} of {steps.length}: {steps[currentStep].description}
+          </p>
+        </div>
+
+        {/* Step Content */}
+        <div className="space-y-6">
+          {currentStep === 0 && (
+            <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-teal-50">
+              <CardContent className="pt-8">
+                <div className="text-center mb-6">
+                  <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Shield className="w-12 h-12 text-blue-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    Welcome to Shiftly Health!
+                  </h2>
+                  <p className="text-gray-700 max-w-2xl mx-auto">
+                    The fastest way to find healthcare shifts that match your skills, schedule, and location.
+                  </p>
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-4 max-w-3xl mx-auto">
+                  <div className="bg-white p-4 rounded-lg border border-blue-200">
+                    <Clock className="w-8 h-8 text-blue-600 mb-3" />
+                    <h3 className="font-semibold text-gray-900 mb-2">Find Shifts Fast</h3>
+                    <p className="text-sm text-gray-600">
+                      Browse hundreds of shifts and apply in seconds. Get matched instantly based on your location and qualifications.
+                    </p>
+                  </div>
+
+                  <div className="bg-white p-4 rounded-lg border border-teal-200">
+                    <CheckCircle className="w-8 h-8 text-teal-600 mb-3" />
+                    <h3 className="font-semibold text-gray-900 mb-2">Verified & Safe</h3>
+                    <p className="text-sm text-gray-600">
+                      All facilities are verified. Your credentials are protected. Background checks ensure safety for everyone.
+                    </p>
+                  </div>
+
+                  <div className="bg-white p-4 rounded-lg border border-purple-200">
+                    <Award className="w-8 h-8 text-purple-600 mb-3" />
+                    <h3 className="font-semibold text-gray-900 mb-2">Earn More</h3>
+                    <p className="text-sm text-gray-600">
+                      Competitive pay rates. Instant pay options available. Work as much or as little as you want.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-8 bg-white p-6 rounded-lg border border-gray-200 max-w-2xl mx-auto">
+                  <h3 className="font-semibold text-gray-900 mb-3">What to expect in this setup:</h3>
+                  <ul className="space-y-2 text-sm text-gray-700">
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                      <span><strong>5 minutes:</strong> Complete your profile and qualifications</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                      <span><strong>Upload credentials:</strong> License, certifications, and training documents</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                      <span><strong>Background check:</strong> Automated verification (24-48 hours)</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                      <span><strong>Start applying:</strong> Browse shifts while verification completes</span>
+                    </li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {currentStep === 1 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="w-5 h-5" />
+                  Personal Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label>Full Name *</Label>
+                  <Input
+                    value={formData.full_name}
+                    onChange={(e) => setFormData({...formData, full_name: e.target.value})}
+                    placeholder="John Doe"
+                    className="mt-1"
+                  />
+                </div>
+
+                <div>
+                  <Label>Phone Number *</Label>
+                  <Input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                    placeholder="(555) 123-4567"
+                    className="mt-1"
+                  />
+                </div>
+
+                <div>
+                  <Label>Staff Type *</Label>
+                  <Select
+                    value={formData.staff_type}
+                    onValueChange={(value) => setFormData({...formData, staff_type: value})}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="licensed">Licensed Healthcare Professional</SelectItem>
+                      <SelectItem value="unlicensed_dsp">Direct Support Professional (DSP)</SelectItem>
+                      <SelectItem value="unlicensed_caregiver">Caregiver</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Professional Bio</Label>
+                  <Textarea
+                    value={formData.bio}
+                    onChange={(e) => setFormData({...formData, bio: e.target.value})}
+                    placeholder="Tell employers about your experience..."
+                    rows={3}
+                    className="mt-1"
+                  />
+                </div>
+
+                {/* Profile Photo Upload */}
+                <div className="mt-6 p-6 bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-dashed border-blue-300 rounded-lg">
+                  <Label className="text-base font-semibold mb-3 block">Profile Photo (Recommended)</Label>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Staff with profile photos get 2x more shift offers! Add a professional photo to stand out.
+                  </p>
+                  
+                  {formData.profile_photo_url ? (
+                    <div className="flex items-center gap-4">
+                      <img 
+                        src={formData.profile_photo_url} 
+                        alt="Profile" 
+                        className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
+                      />
+                      <div>
+                        <p className="text-sm text-green-700 font-semibold mb-2">✓ Photo uploaded!</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => document.getElementById('photo-upload').click()}
+                          disabled={uploadingPhoto}
+                        >
+                          <Camera className="w-4 h-4 mr-2" />
+                          Change Photo
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <div className="w-24 h-24 bg-gray-200 rounded-full mx-auto mb-4 flex items-center justify-center">
+                        <Camera className="w-12 h-12 text-gray-400" />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => document.getElementById('photo-upload').click()}
+                        disabled={uploadingPhoto}
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        {uploadingPhoto ? "Uploading..." : "Upload Photo"}
+                      </Button>
+                    </div>
+                  )}
+                  
+                  <input
+                    id="photo-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handlePhotoUpload}
+                    disabled={uploadingPhoto}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {currentStep === 2 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Award className="w-5 h-5" />
+                  Qualifications & Experience
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Years of Experience *</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="50"
+                      step="0.5"
+                      value={formData.years_experience}
+                      onChange={(e) => setFormData({...formData, years_experience: e.target.value})}
+                      placeholder="5"
+                      className="mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Desired Hourly Rate ($)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={formData.hourly_rate}
+                      onChange={(e) => setFormData({...formData, hourly_rate: e.target.value})}
+                      placeholder="25.00"
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="mb-2 block">Select Your Qualifications</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {QUALIFICATIONS.map((qual) => (
+                      <Badge
+                        key={qual}
+                        variant={formData.qualifications.includes(qual) ? "default" : "outline"}
+                        className={`cursor-pointer transition-all ${
+                          formData.qualifications.includes(qual)
+                            ? 'bg-teal-500 hover:bg-teal-600'
+                            : 'hover:bg-teal-50 hover:border-teal-300'
+                        }`}
+                        onClick={() => toggleQualification(qual)}
+                      >
+                        {qual}
+                        {formData.qualifications.includes(qual) && <X className="w-3 h-3 ml-1" />}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div>
+                    <Label>License Number</Label>
+                    <Input
+                      value={formData.license_number}
+                      onChange={(e) => setFormData({...formData, license_number: e.target.value})}
+                      placeholder="RN123456"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label>License State</Label>
+                    <Input
+                      value={formData.license_state}
+                      onChange={(e) => setFormData({...formData, license_state: e.target.value})}
+                      placeholder="CA"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label>License Expiry</Label>
+                    <Input
+                      type="date"
+                      value={formData.license_expiry}
+                      onChange={(e) => setFormData({...formData, license_expiry: e.target.value})}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {currentStep === 3 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
+                  Availability & Shift Preferences
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start gap-2">
+                    <div className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-white text-xs font-bold">i</span>
+                    </div>
+                    <div>
+                      <p className="text-sm text-blue-900 font-semibold mb-1">💡 Why availability matters:</p>
+                      <p className="text-sm text-blue-900">
+                        Staff with flexible availability get <strong>3x more shift offers!</strong> Our intelligent matching 
+                        system finds shifts that fit your schedule and location. The more specific you are, the better.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-base font-semibold mb-3 block">Preferred Shift Times *</Label>
+                  <div className="grid md:grid-cols-2 gap-3">
+                    {[
+                      { value: 'day', label: 'Day Shift', time: '7am - 3pm', color: 'yellow' },
+                      { value: 'evening', label: 'Evening Shift', time: '3pm - 11pm', color: 'orange' },
+                      { value: 'night', label: 'Night Shift', time: '11pm - 7am', color: 'blue' },
+                      { value: 'flexible', label: 'Flexible', time: 'Any time', color: 'purple' }
+                    ].map(({ value, label, time, color }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => toggleShiftTime(value)}
+                        className={`p-4 rounded-xl border-2 transition-all text-left ${
+                          formData.shift_preferences.preferred_shift_times.includes(value)
+                            ? `border-${color}-400 bg-${color}-50`
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                            formData.shift_preferences.preferred_shift_times.includes(value)
+                              ? `bg-${color}-100`
+                              : 'bg-gray-100'
+                          }`}>
+                            <Clock className={`w-6 h-6 ${
+                              formData.shift_preferences.preferred_shift_times.includes(value)
+                                ? `text-${color}-600`
+                                : 'text-gray-400'
+                            }`} />
+                          </div>
+                          <div>
+                            <div className="font-semibold text-gray-900">{label}</div>
+                            <div className="text-xs text-gray-600">{time}</div>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="flex items-center justify-between p-4 bg-white rounded-lg border-2 border-gray-200">
+                    <div className="flex items-center gap-3">
+                      <Calendar className="w-5 h-5 text-gray-600" />
+                      <div>
+                        <Label className="font-semibold text-gray-900">Work Weekends</Label>
+                        <p className="text-xs text-gray-600">Saturdays & Sundays</p>
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={formData.shift_preferences.willing_to_work_weekends}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        shift_preferences: { ...formData.shift_preferences, willing_to_work_weekends: e.target.checked }
+                      })}
+                      className="w-5 h-5 text-blue-600"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 bg-white rounded-lg border-2 border-gray-200">
+                    <div className="flex items-center gap-3">
+                      <Calendar className="w-5 h-5 text-gray-600" />
+                      <div>
+                        <Label className="font-semibold text-gray-900">Work Holidays</Label>
+                        <p className="text-xs text-gray-600">Major holidays</p>
+                      </div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={formData.shift_preferences.willing_to_work_holidays}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        shift_preferences: { ...formData.shift_preferences, willing_to_work_holidays: e.target.checked }
+                      })}
+                      className="w-5 h-5 text-blue-600"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="font-semibold">Maximum Commute Distance</Label>
+                  <div className="mt-2 flex items-center gap-4">
+                    <input
+                      type="range"
+                      min="5"
+                      max="50"
+                      step="5"
+                      value={formData.shift_preferences.max_commute_miles}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        shift_preferences: { ...formData.shift_preferences, max_commute_miles: parseInt(e.target.value) }
+                      })}
+                      className="flex-1"
+                    />
+                    <Badge className="bg-blue-600 text-white px-4 py-2">
+                      {formData.shift_preferences.max_commute_miles} miles
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-gray-600 mt-2">
+                    You'll see shifts within this distance from your location
+                  </p>
+                </div>
+
+                <div className="mt-6 p-4 bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200 rounded-lg">
+                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-purple-600" />
+                    Detailed Weekly Availability (Optional)
+                  </h4>
+                  <p className="text-sm text-gray-700 mb-4">
+                    Set specific days and times you're typically available. This helps us match you with shifts perfectly.
+                  </p>
+
+                  {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
+                    <div key={day} className="mb-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <Label className="text-sm font-semibold capitalize">{day}</Label>
+                        <div className="flex gap-2">
+                          {['morning', 'afternoon', 'evening', 'night'].map((timeSlot) => (
+                            <button
+                              key={timeSlot}
+                              type="button"
+                              onClick={() => toggleDayAvailability(day, timeSlot)}
+                              className={`px-3 py-1 text-xs rounded-full border transition-all ${
+                                formData.availability[day]?.includes(timeSlot)
+                                  ? 'bg-purple-600 text-white border-purple-600'
+                                  : 'bg-white text-gray-600 border-gray-300 hover:border-purple-300'
+                              }`}
+                            >
+                              {timeSlot}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="mt-4 flex items-start gap-2 text-xs text-gray-600">
+                    <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    <p>
+                      <strong>Time ranges:</strong> Morning (6am-12pm), Afternoon (12pm-6pm), Evening (6pm-12am), Night (12am-6am)
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {currentStep === 4 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Upload className="w-5 h-5" />
+                  Upload Your Credentials
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <div className="flex items-start gap-2">
+                    <Shield className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm text-amber-900 font-semibold mb-1">Verification Process:</p>
+                      <p className="text-sm text-amber-900">
+                        All credentials are verified by our compliance team within 24-48 hours. You can browse 
+                        shifts immediately, but you'll need verification approval before applying. Accepted formats: 
+                        PDF, JPG, PNG (max 10MB per file).
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Upload your professional license, certifications, and other credentials. These will be verified by our compliance team.
+                </p>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="border-2 border-dashed border-blue-300 rounded-lg p-4 hover:border-blue-400 transition-colors">
+                    <label htmlFor="license-upload" className="cursor-pointer block text-center">
+                      <Shield className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                      <p className="font-semibold text-gray-900 mb-1">Professional License</p>
+                      <p className="text-xs text-gray-600 mb-3">RN, LPN, CNA, etc.</p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={uploadingDoc}
+                        onClick={() => document.getElementById('license-upload').click()}
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        {uploadingDoc ? "Uploading..." : "Upload"}
+                      </Button>
+                    </label>
+                    <input
+                      id="license-upload"
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      className="hidden"
+                      onChange={(e) => handleDocumentUpload(e, 'license_verification', 'Professional License')}
+                      disabled={uploadingDoc}
+                    />
+                  </div>
+
+                  <div className="border-2 border-dashed border-teal-300 rounded-lg p-4 hover:border-teal-400 transition-colors">
+                    <label htmlFor="cert-upload" className="cursor-pointer block text-center">
+                      <Award className="w-8 h-8 text-teal-600 mx-auto mb-2" />
+                      <p className="font-semibold text-gray-900 mb-1">Certifications</p>
+                      <p className="text-xs text-gray-600 mb-3">CPR, BLS, ACLS, etc.</p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={uploadingDoc}
+                        onClick={() => document.getElementById('cert-upload').click()}
+                      >
+                        <Upload className="w-4 h-4 mr-2" />
+                        {uploadingDoc ? "Uploading..." : "Upload"}
+                      </Button>
+                    </label>
+                    <input
+                      id="cert-upload"
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      className="hidden"
+                      onChange={(e) => handleDocumentUpload(e, 'certification', 'Certification')}
+                      disabled={uploadingDoc}
+                    />
+                  </div>
+                </div>
+
+                {uploadedDocs.length > 0 && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <p className="font-semibold text-green-900 mb-2 flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5" />
+                      Uploaded Documents
+                    </p>
+                    <ul className="space-y-1">
+                      {uploadedDocs.map((doc, idx) => (
+                        <li key={idx} className="text-sm text-green-700">✓ {doc}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {currentStep === 5 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="w-5 h-5" />
+                  Background Check & Verification
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm text-green-900 font-semibold mb-1">Automated Background Check:</p>
+                      <p className="text-sm text-green-900">
+                        We use Checkr, a trusted background check provider, to verify your information. 
+                        The process is automatic and typically completes within 24-48 hours. You'll receive 
+                        email notifications about the status. This is required for all healthcare positions.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-blue-900 mb-4">
+                    <strong>Required:</strong> We need your address to initiate the automated background check through Checkr.
+                  </p>
+                </div>
+
+                <div>
+                  <Label>Street Address *</Label>
+                  <Input
+                    value={formData.address}
+                    onChange={(e) => setFormData({...formData, address: e.target.value})}
+                    placeholder="123 Main St"
+                    className="mt-1"
+                  />
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div>
+                    <Label>City *</Label>
+                    <Input
+                      value={formData.city}
+                      onChange={(e) => setFormData({...formData, city: e.target.value})}
+                      placeholder="Boston"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label>State *</Label>
+                    <Input
+                      value={formData.state}
+                      onChange={(e) => setFormData({...formData, state: e.target.value})}
+                      placeholder="MA"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label>ZIP Code *</Label>
+                    <Input
+                      value={formData.zip_code}
+                      onChange={(e) => setFormData({...formData, zip_code: e.target.value})}
+                      placeholder="02101"
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <p className="text-sm text-green-900">
+                    <strong>What happens next:</strong>
+                  </p>
+                  <ul className="text-sm text-green-800 mt-2 space-y-1">
+                    <li>✓ Background check initiated automatically with Checkr</li>
+                    <li>✓ Results typically available within 24-48 hours</li>
+                    <li>✓ You'll be notified when verification is complete</li>
+                    <li>✓ Once verified, you can start applying for shifts!</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {currentStep === 6 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="w-5 h-5" />
+                  Payment & Banking Setup
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start gap-2">
+                    <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm text-blue-900 font-semibold mb-1">Get Paid Instantly!</p>
+                      <p className="text-sm text-blue-900">
+                        Add your banking details now to enable instant pay after completing shifts. You can also set this up later in your profile.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Account Holder Name</Label>
+                  <Input
+                    value={formData.banking_info.account_holder_name}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      banking_info: { ...formData.banking_info, account_holder_name: e.target.value }
+                    })}
+                    placeholder="John Doe"
+                    className="mt-1"
+                  />
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Bank Name</Label>
+                    <Input
+                      value={formData.banking_info.bank_name}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        banking_info: { ...formData.banking_info, bank_name: e.target.value }
+                      })}
+                      placeholder="Bank of America"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label>Account Type</Label>
+                    <Select
+                      value={formData.banking_info.account_type}
+                      onValueChange={(value) => setFormData({
+                        ...formData,
+                        banking_info: { ...formData.banking_info, account_type: value }
+                      })}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="checking">Checking</SelectItem>
+                        <SelectItem value="savings">Savings</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Routing Number</Label>
+                    <Input
+                      value={formData.banking_info.routing_number}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        banking_info: { ...formData.banking_info, routing_number: e.target.value }
+                      })}
+                      placeholder="123456789"
+                      maxLength={9}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label>Account Number</Label>
+                    <Input
+                      type="password"
+                      value={formData.banking_info.account_number}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        banking_info: { ...formData.banking_info, account_number: e.target.value }
+                      })}
+                      placeholder="••••••••••"
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4">
+                  <p className="text-sm text-green-900">
+                    <strong>🔒 Secure & Encrypted:</strong> Your banking information is encrypted and stored securely. 
+                    We never share your details with third parties.
+                  </p>
+                </div>
+
+                <div className="text-center text-sm text-gray-600 pt-4">
+                  <p>Don't have this information now? No problem!</p>
+                  <p className="font-semibold">You can add payment details later from your profile settings.</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {currentStep === 7 && (
+            <Card className="border-blue-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Briefcase className="w-5 h-5" />
+                  How to Find & Apply for Shifts
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="bg-gradient-to-br from-blue-50 to-teal-50 border border-blue-200 rounded-lg p-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">The Application Process</h3>
+                  
+                  <div className="space-y-4">
+                    <div className="flex gap-4">
+                      <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center flex-shrink-0 font-bold">
+                        1
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-1">Browse Available Shifts</h4>
+                        <p className="text-sm text-gray-700">
+                          Visit the <strong>Global Marketplace</strong> to see all available shifts near you. Use filters to find 
+                          shifts that match your qualifications, schedule, and location preferences.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4">
+                      <div className="w-10 h-10 bg-teal-600 text-white rounded-full flex items-center justify-center flex-shrink-0 font-bold">
+                        2
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-1">Review Shift Details</h4>
+                        <p className="text-sm text-gray-700">
+                          Click on any shift to see full details: facility name, required qualifications, hourly rate, 
+                          shift time, location, and special requirements.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4">
+                      <div className="w-10 h-10 bg-purple-600 text-white rounded-full flex items-center justify-center flex-shrink-0 font-bold">
+                        3
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-1">Apply with One Click</h4>
+                        <p className="text-sm text-gray-700">
+                          Click <strong>"Apply Now"</strong> button. Your profile, qualifications, and credentials are 
+                          automatically sent to the facility. No need to fill out forms every time!
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4">
+                      <div className="w-10 h-10 bg-green-600 text-white rounded-full flex items-center justify-center flex-shrink-0 font-bold">
+                        4
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-1">Get Notified Instantly</h4>
+                        <p className="text-sm text-gray-700">
+                          You'll receive instant notifications when facilities review your application. Most responses 
+                          come within 15-30 minutes!
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-4">
+                      <div className="w-10 h-10 bg-amber-600 text-white rounded-full flex items-center justify-center flex-shrink-0 font-bold">
+                        5
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-1">Confirm & Show Up</h4>
+                        <p className="text-sm text-gray-700">
+                          Once accepted, you'll get all shift details via email and in-app. Show up on time, complete 
+                          your shift, and get paid!
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white border-2 border-green-200 rounded-lg p-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <CheckCircle className="w-6 h-6 text-green-600" />
+                    Tips for Success
+                  </h3>
+                  <ul className="space-y-3 text-sm text-gray-700">
+                    <li className="flex items-start gap-2">
+                      <span className="text-teal-600 font-bold">✓</span>
+                      <span><strong>Complete your profile:</strong> Profiles with photos and detailed experience get 2-3x more shift offers.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-teal-600 font-bold">✓</span>
+                      <span><strong>Apply quickly:</strong> Shifts fill fast! Apply within the first hour of posting for the best chance.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-teal-600 font-bold">✓</span>
+                      <span><strong>Enable notifications:</strong> Get instant alerts when shifts matching your profile are posted nearby.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-teal-600 font-bold">✓</span>
+                      <span><strong>Build your reputation:</strong> Great ratings lead to more opportunities and higher-paying shifts.</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-teal-600 font-bold">✓</span>
+                      <span><strong>Be flexible:</strong> Staff willing to work weekends, evenings, and last-minute shifts earn 40% more.</span>
+                    </li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {currentStep === 8 && (
+            <Card className="border-2 border-green-200 bg-gradient-to-br from-green-50 to-teal-50">
+              <CardContent className="pt-8">
+                <div className="text-center mb-6">
+                  <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle className="w-12 h-12 text-green-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    You're All Set! 🎉
+                  </h2>
+                  <p className="text-gray-700 mb-6 max-w-md mx-auto">
+                    Your profile is complete and your background check has been initiated. Here's what happens next:
+                  </p>
+                </div>
+
+                <div className="bg-white p-6 rounded-lg border border-blue-200 mb-6">
+                  <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Award className="w-5 h-5 text-blue-600" />
+                    Key Platform Features - Quick Guide
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span className="text-blue-600 font-bold text-sm">1</span>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900 text-sm">Browse & Apply for Shifts</p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Visit the "Global Marketplace" to see all available shifts near you. Use filters to find 
+                          shifts that match your preferences. Apply with one click!
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span className="text-purple-600 font-bold text-sm">2</span>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900 text-sm">Real-Time Notifications</p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Get instant alerts when facilities accept your application or when new shifts matching 
+                          your profile are posted. Check the bell icon in the sidebar.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span className="text-teal-600 font-bold text-sm">3</span>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900 text-sm">Direct Messaging</p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Communicate directly with facilities through our "Messages" feature. Ask questions 
+                          about shifts, confirm details, or coordinate arrival times.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span className="text-green-600 font-bold text-sm">4</span>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900 text-sm">Instant Pay & Earnings</p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Track your earnings in real-time. Access funds immediately after completing shifts 
+                          using our "Instant Pay" feature. View full history in "Earnings History".
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-gray-700 mb-6 text-center">
+                  Your profile is complete and your background check has been initiated. 
+                  You can start browsing available shifts while we verify your credentials.
+                </p>
+                <div className="grid md:grid-cols-3 gap-4 max-w-2xl mx-auto mb-6">
+                  <div className="bg-white p-4 rounded-lg">
+                    <CheckCircle className="w-6 h-6 text-green-600 mx-auto mb-2" />
+                    <p className="font-semibold text-sm">Profile Created</p>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg">
+                    <FileText className="w-6 h-6 text-green-600 mx-auto mb-2" />
+                    <p className="font-semibold text-sm">{uploadedDocs.length} Docs Uploaded</p>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg">
+                    <Clock className="w-6 h-6 text-amber-600 mx-auto mb-2" />
+                    <p className="font-semibold text-sm">Verification Pending</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Navigation Buttons */}
+        <div className="flex justify-between pt-4 border-t">
+          <Button
+            variant="outline"
+            onClick={handleBack}
+            disabled={currentStep === 0}
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+
+          <Button
+            onClick={handleNext}
+            disabled={!canProceed() || saveProfileMutation.isPending || initiateBackgroundCheckMutation.isPending}
+            className="bg-gradient-to-r from-blue-600 to-teal-600"
+          >
+            {saveProfileMutation.isPending || initiateBackgroundCheckMutation.isPending ? (
+              "Processing..."
+            ) : currentStep === steps.length - 1 ? (
+              "Complete & Go to Dashboard"
+            ) : (
+              <>
+                Next
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </>
+            )}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
